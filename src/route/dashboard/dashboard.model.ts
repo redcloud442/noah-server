@@ -23,6 +23,9 @@ export const dashboardModel = async (params: typeDashboardSchema) => {
           gte: startDate,
           lte: endDate,
         },
+        order_status: {
+          in: ["PAID", "SHIPPED"],
+        },
       },
     }),
     prisma.order_table.aggregate({
@@ -32,10 +35,18 @@ export const dashboardModel = async (params: typeDashboardSchema) => {
           gte: startOfMonth(now),
           lte: endOfMonth(now),
         },
+        order_status: {
+          in: ["PAID", "SHIPPED"],
+        },
       },
     }),
     prisma.order_table.aggregate({
       _sum: { order_total: true },
+      where: {
+        order_status: {
+          in: ["PAID", "SHIPPED"],
+        },
+      },
     }),
   ]);
 

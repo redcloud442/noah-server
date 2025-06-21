@@ -155,7 +155,10 @@ export type typeUserPostSchema = z.infer<typeof userPostSchema>;
 export const userPatchSchema = z.object({
   userId: z.string().uuid(),
   type: z.enum(["ban", "promote"]),
-  role: z.enum(["ADMIN", "MEMBER", "RESELLER"]).optional().nullable(),
+  role: z
+    .enum(["ADMIN", "MEMBER", "RESELLER", "CASHIER"])
+    .optional()
+    .nullable(),
 });
 
 export type typeUserPatchSchema = z.infer<typeof userPatchSchema>;
@@ -258,3 +261,24 @@ export const emailSchema = z.object({
 });
 
 export type typeEmailSchema = z.infer<typeof emailSchema>;
+
+export const getPosProductsSchema = z.object({
+  take: z.coerce.number().min(1).max(100),
+  skip: z.coerce.number().min(0),
+});
+
+export type typeGetPosProductsSchema = z.infer<typeof getPosProductsSchema>;
+
+export const addPosProductSchema = z.object({
+  total_amount: z.number(),
+  cartItems: z.array(
+    z.object({
+      product_variant_id: z.string().uuid(),
+      product_quantity: z.number(),
+      product_variant_size: z.string(),
+      product_variant_product: z.string(),
+    })
+  ),
+});
+
+export type typeAddPosProductSchema = z.infer<typeof addPosProductSchema>;
