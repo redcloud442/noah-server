@@ -51,7 +51,8 @@ export const authLoginModel = async (params: {
 
   if (
     !userData.team_member_table[0].team_member_role.includes("ADMIN") &&
-    !userData.team_member_table[0].team_member_role.includes("MEMBER")
+    !userData.team_member_table[0].team_member_role.includes("MEMBER") &&
+    !userData.team_member_table[0].team_member_role.includes("CASHIER")
   ) {
     throw new Error("User not found");
   }
