@@ -12,6 +12,7 @@ datasource db {
 
 enum OrderStatus {
   PENDING
+  UNPAID
   PAID
   SHIPPED
   COMPLETED
@@ -55,6 +56,8 @@ model user_address_table {
 
   user_address_user user_table @relation(fields: [user_address_user_id], references: [user_id], onDelete: Cascade)
 
+
+  @@index([user_address_user_id])
   @@schema("user_schema")
 }
 
@@ -88,6 +91,8 @@ model team_member_table {
   team_member_team_group team_group_member_table[]
   team_member_reseller reseller_table[]
   team_member_reseller_withdrawals reseller_withdrawal_table[]
+
+  @@index([team_member_user_id])
   @@schema("team_schema")
 }
 
@@ -118,14 +123,15 @@ model cart_table {
   cart_product_variant_id String @db.Uuid
   cart_quantity           Int
   cart_size               String
+  cart_to_be_checked_out Boolean @default(false)
   cart_created_at         DateTime @default(now()) @db.Timestamptz(3)
   cart_updated_at         DateTime? @updatedAt @db.Timestamptz(3)
 
   cart_user user_table @relation(fields: [cart_user_id], references: [user_id], onDelete: Cascade)
   cart_product_variant product_variant_table @relation(fields: [cart_product_variant_id], references: [product_variant_id], onDelete: Cascade)
 
-  @@unique([cart_user_id, cart_product_variant_id, cart_size]) // Unique constraint
-
+  @@unique([cart_user_id, cart_product_variant_id, cart_size])
+  @@index([cart_user_id, cart_product_variant_id, cart_size])
   @@schema("order_schema")
 }
 
@@ -157,7 +163,9 @@ model order_table {
   order_team      team_table @relation(fields: [order_team_id], references: [team_id], onDelete: Cascade)
   order_reseller reseller_table? @relation(fields: [order_reseller_id], references: [reseller_id], onDelete: Cascade)
 
-   order_items      order_item_table[]
+  order_items      order_item_table[]
+
+  @@index([order_user_id, order_team_id, order_reseller_id])
   @@schema("order_schema")
 }
 
@@ -173,7 +181,8 @@ model order_item_table {
   order             order_table @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
   product_variant   product_variant_table @relation(fields: [product_variant_id], references: [product_variant_id], onDelete: Cascade)
 
-  @@unique([order_id, product_variant_id])
+  @@unique([order_id, product_variant_id,size])
+  @@index([order_id, product_variant_id,size])
   @@schema("order_schema")
 }
 
@@ -194,6 +203,8 @@ model product_table {
   product_category product_category_table @relation(fields: [product_category_id], references: [product_category_id], onDelete: Cascade)
   product_team team_table @relation(fields: [product_team_id], references: [team_id], onDelete: Cascade)
   product_variants product_variant_table[]
+
+  @@index([product_category_id, product_team_id])
   @@schema("product_schema")
 }
 
@@ -209,6 +220,8 @@ model product_category_table {
 
   products product_table[]
   product_category_team team_table @relation(fields: [product_category_team_id], references: [team_id], onDelete: Cascade)
+
+  @@index([product_category_team_id])
   @@schema("product_schema")
 }
 
@@ -226,6 +239,7 @@ model product_variant_table {
   variant_sizes variant_size_table[] // 👈 NEW
   order_item_table order_item_table[]
 
+  @@index([product_variant_product_id])
   @@schema("product_schema")
 }
 
@@ -237,6 +251,7 @@ model variant_size_table {
 
   variant product_variant_table @relation(fields: [variant_size_variant_id], references: [product_variant_id], onDelete: Cascade)
 
+  @@index([variant_size_variant_id])
   @@schema("product_schema")
 }
 
@@ -247,6 +262,8 @@ model variant_sample_image_table {
   variant_sample_image_created_at DateTime @default(now()) @db.Timestamptz(3)
 
   variant_sample_image_product_variant product_variant_table @relation(fields: [variant_sample_image_product_variant_id], references: [product_variant_id], onDelete: Cascade)
+
+  @@index([variant_sample_image_product_variant_id])
   @@schema("product_schema")
 }
 
@@ -264,6 +281,8 @@ model reseller_table {
   reseller_withdrawals reseller_withdrawal_table[]
   reseller_orders order_table[]
   reseller_transactions reseller_transaction_table[]
+
+  @@index([reseller_team_member_id])
   @@schema("reseller_schema")
 }
 
@@ -283,6 +302,7 @@ model reseller_withdrawal_table {
 
   action_by team_member_table? @relation(fields: [reseller_withdrawal_action_by], references: [team_member_id], onDelete: Cascade)
 
+  @@index([reseller_withdrawal_reseller_id])
   @@schema("reseller_schema")
 }
 
@@ -296,6 +316,7 @@ model reseller_transaction_table {
 
   reseller_transaction_reseller reseller_table @relation(fields: [reseller_transaction_reseller_id], references: [reseller_id], onDelete: Cascade)
 
+  @@index([reseller_transaction_reseller_id])
   @@schema("reseller_schema")
 }
 

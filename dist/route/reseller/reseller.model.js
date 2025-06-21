@@ -65,7 +65,7 @@ export const resellerOrdersModel = async (params) => {
         };
         sort[columnAccessorMapping[columnAccessor]] = sortDirection === "asc" ? "asc" : "desc";
     }
-    const offset = take * skip + 1;
+    const offset = skip * take;
     const orders = await prisma.order_table.findMany({
         where: {
             order_reseller_id: resellerId,

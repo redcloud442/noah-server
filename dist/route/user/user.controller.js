@@ -1,4 +1,4 @@
-import { createResellerRequestModel, getUserListModel, getUserListResellerModel, getUserModel, userPatchModel, verifyResellerCodeModel, } from "./user.model.js";
+import { createResellerRequestModel, getUserListModel, getUserListResellerModel, getUserModel, userChangePasswordModel, userGenerateLoginLinkModel, userPatchModel, verifyResellerCodeModel, } from "./user.model.js";
 export const getUserController = async (c) => {
     try {
         const user = c.get("user");
@@ -76,6 +76,34 @@ export const userPatchController = async (c) => {
         return c.json("User updated successfully", 200);
     }
     catch (error) {
+        return c.json({ message: "Internal server error" }, 500);
+    }
+};
+export const userChangePasswordController = async (c) => {
+    try {
+        const params = c.get("params");
+        const userChangePassword = await userChangePasswordModel({
+            userId: params.userId,
+            password: params.password,
+        });
+        return c.json(userChangePassword, 200);
+    }
+    catch (error) {
+        return c.json({ message: "Internal server error" }, 500);
+    }
+};
+export const userGenerateLoginLinkController = async (c) => {
+    try {
+        const params = c.get("params");
+        const userGenerateLoginLink = await userGenerateLoginLinkModel({
+            email: params.email,
+        });
+        return c.json(userGenerateLoginLink, 200);
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return c.json({ message: error.message }, 400);
+        }
         return c.json({ message: "Internal server error" }, 500);
     }
 };

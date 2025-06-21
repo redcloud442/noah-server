@@ -1,8 +1,10 @@
 import { sign, verify } from "hono/jwt";
+import { Resend } from "resend";
 import { envConfig } from "../../env.js";
 import prisma from "../../utils/prisma.js";
 import { supabaseClient } from "../../utils/supabase.js";
 const JWT_SECRET = envConfig.JWT_SECRET;
+const resendClient = new Resend(process.env.RESEND_API_KEY);
 export const authLoginModel = async (params) => {
     const { email, cart } = params;
     let redirectTo = "/account/orders";
@@ -50,9 +52,10 @@ export const authLoginModel = async (params) => {
         for (const item of cart) {
             await prisma.cart_table.upsert({
                 where: {
-                    cart_user_id_cart_product_variant_id: {
+                    cart_user_id_cart_product_variant_id_cart_size: {
                         cart_user_id: userData.user_id,
                         cart_product_variant_id: item.product_variant_id,
+                        cart_size: item.product_size,
                     },
                 },
                 update: {
@@ -64,6 +67,7 @@ export const authLoginModel = async (params) => {
                     cart_quantity: item.product_quantity,
                     cart_user_id: userData.user_id,
                     cart_product_variant_id: item.product_variant_id,
+                    cart_size: item.product_size,
                 },
             });
         }
@@ -107,7 +111,6 @@ export const authLoginResellerModel = async (params) => {
 export const authCallbackModel = async (params) => {
     const { email, firstName, lastName, userId, cart } = params;
     let redirectTo = "http://localhost:3001/account";
-    const supabase = supabaseClient;
     const isUserExists = await prisma.user_table.findUnique({
         where: {
             user_id: userId,
@@ -165,6 +168,15 @@ export const authCallbackModel = async (params) => {
         throw new Error("User not found");
     }
     if (!isUserExists) {
+        await prisma.newsletter_table.create({
+            data: {
+                newsletter_email: email,
+            },
+        });
+        await resendClient.contacts.create({
+            audienceId: process.env.RESEND_AUDIENCE_ID,
+            email: email,
+        });
         await supabaseClient.auth.admin.updateUserById(userId, {
             user_metadata: {
                 role: "MEMBER",
@@ -182,7 +194,7 @@ export const authCallbackModel = async (params) => {
         throw new Error("User not found");
     }
     if (userData.team_member_table[0].team_member_role === "ADMIN") {
-        redirectTo = `/${userData.team_member_table[0].team_member_team.team_name.toLowerCase()}/admin`;
+        redirectTo = `http://localhost:3001/${userData.team_member_table[0].team_member_team.team_name.toLowerCase()}/admin`;
     }
     else {
         redirectTo = `http://localhost:3001/account`;
@@ -194,9 +206,10 @@ export const authCallbackModel = async (params) => {
         for (const item of cart) {
             await prisma.cart_table.upsert({
                 where: {
-                    cart_user_id_cart_product_variant_id: {
+                    cart_user_id_cart_product_variant_id_cart_size: {
                         cart_user_id: userData.user_id,
                         cart_product_variant_id: item.product_variant_id,
+                        cart_size: item.product_size,
                     },
                 },
                 update: {
@@ -209,6 +222,7 @@ export const authCallbackModel = async (params) => {
                     cart_quantity: item.product_quantity,
                     cart_user_id: userData.user_id,
                     cart_product_variant_id: item.product_variant_id,
+                    cart_size: item.product_size,
                 },
             });
         }
@@ -249,15 +263,25 @@ export const authRegisterModel = async (params) => {
                 },
             },
         });
+        await prisma.newsletter_table.create({
+            data: {
+                newsletter_email: email,
+            },
+        });
+        await resendClient.contacts.create({
+            audienceId: process.env.RESEND_AUDIENCE_ID,
+            email: email,
+        });
         return userData;
     });
     if (cart && cart.length > 0) {
         for (const item of cart) {
             await prisma.cart_table.upsert({
                 where: {
-                    cart_user_id_cart_product_variant_id: {
+                    cart_user_id_cart_product_variant_id_cart_size: {
                         cart_user_id: user.user_id,
                         cart_product_variant_id: item.product_variant_id,
+                        cart_size: item.product_size,
                     },
                 },
                 update: {
@@ -270,6 +294,7 @@ export const authRegisterModel = async (params) => {
                     cart_quantity: item.product_quantity,
                     cart_user_id: user.user_id,
                     cart_product_variant_id: item.product_variant_id,
+                    cart_size: item.product_size,
                 },
             });
         }
@@ -316,9 +341,10 @@ export const authSaveCartModel = async (params) => {
         for (const item of cart) {
             await prisma.cart_table.upsert({
                 where: {
-                    cart_user_id_cart_product_variant_id: {
+                    cart_user_id_cart_product_variant_id_cart_size: {
                         cart_user_id: userId,
                         cart_product_variant_id: item.product_variant_id,
+                        cart_size: item.product_size,
                     },
                 },
                 update: {
@@ -331,6 +357,7 @@ export const authSaveCartModel = async (params) => {
                     cart_quantity: item.product_quantity,
                     cart_user_id: userId,
                     cart_product_variant_id: item.product_variant_id,
+                    cart_size: item.product_size,
                 },
             });
         }

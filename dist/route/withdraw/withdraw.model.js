@@ -47,7 +47,6 @@ export const withdrawalListModel = async (params) => {
     const filter = {};
     const statusFilter = {};
     const offset = skip ? (skip - 1) * take : 0;
-    console.log(status);
     if (search) {
         filter.OR = [
             {
@@ -120,6 +119,8 @@ export const withdrawalListModel = async (params) => {
                     team_member_user: {
                         select: {
                             user_email: true,
+                            user_first_name: true,
+                            user_last_name: true,
                         },
                     },
                 },
@@ -148,7 +149,6 @@ export const withdrawalListModel = async (params) => {
         reseller_withdrawal_reseller: item.reseller_withdrawal_reseller?.reseller_team_member?.team_member_user
             ?.user_email,
     }));
-    console.log(filter);
     const count = await prisma.reseller_withdrawal_table.groupBy({
         where: filter,
         by: ["reseller_withdrawal_status"],
@@ -163,13 +163,23 @@ export const withdrawalListModel = async (params) => {
         total,
     };
 };
-export const withdrawalActionModel = async (params) => {
+export const withdrawalActionModel = async (params, actionBy) => {
     const { withdrawalId, resellerId, status } = params;
+    const memberId = await prisma.team_member_table.findFirst({
+        where: {
+            team_member_user_id: actionBy,
+        },
+        select: {
+            team_member_id: true,
+        },
+    });
     await prisma.$transaction(async (tx) => {
         const data = await tx.reseller_withdrawal_table.update({
             where: { reseller_withdrawal_id: withdrawalId },
             data: {
                 reseller_withdrawal_status: status,
+                reseller_withdrawal_action_by: memberId?.team_member_id,
+                reseller_withdrawal_updated_at: new Date(),
             },
             select: {
                 reseller_withdrawal_amount: true,

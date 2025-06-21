@@ -17,14 +17,14 @@ export const withdrawListController = async (c) => {
         return c.json(data, 200);
     }
     catch (error) {
-        console.log(error);
         return c.json({ message: "Internal server error" }, 500);
     }
 };
 export const withdrawActionController = async (c) => {
     try {
         const params = c.get("params");
-        await withdrawalActionModel(params);
+        const user = c.get("user");
+        await withdrawalActionModel(params, user.user_metadata.resellerId);
         return c.json({ message: "Withdrawal action successful" }, 200);
     }
     catch (error) {

@@ -1,4 +1,4 @@
-import { userPatchSchema, userPostSchema, userVerifyResellerCodeSchema, } from "../../schema/schema.js";
+import { userChangePasswordSchema, userPatchSchema, userPostSchema, userVerifyResellerCodeSchema, } from "../../schema/schema.js";
 import { rateLimit } from "../../utils/redis.js";
 export const userGetMiddleware = async (c, next) => {
     const user = c.get("user");
@@ -75,5 +75,35 @@ export const userVerifyResellerCodeMiddleware = async (c, next) => {
         return c.json({ message: "invalid otp" }, 400);
     }
     c.set("params", validatedData.data);
+    await next();
+};
+export const userChangePasswordMiddleware = async (c, next) => {
+    const user = c.get("user");
+    if (!user) {
+        return c.json({ message: "Unauthorized" }, 401);
+    }
+    const isAllowed = await rateLimit(`rate-limit:${user.id}:user-change-password`, 5, "1m", c);
+    if (!isAllowed) {
+        return c.json({ message: "Too many requests" }, 429);
+    }
+    const { params } = await c.req.json();
+    const validatedData = userChangePasswordSchema.safeParse(params);
+    if (validatedData.error) {
+        return c.json({ message: "invalid password" }, 400);
+    }
+    c.set("params", validatedData.data);
+    await next();
+};
+export const userGenerateLoginLinkMiddleware = async (c, next) => {
+    const user = c.get("user");
+    if (!user) {
+        return c.json({ message: "Unauthorized" }, 401);
+    }
+    const isAllowed = await rateLimit(`rate-limit:${user.id}:user-generate-login-link`, 5, "1m", c);
+    if (!isAllowed) {
+        return c.json({ message: "Too many requests" }, 429);
+    }
+    const { params } = await c.req.json();
+    c.set("params", params);
     await next();
 };

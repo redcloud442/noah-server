@@ -3,8 +3,12 @@ import prisma from "../../utils/prisma.js";
 export const dashboardModel = async (params) => {
     const now = new Date();
     const { start, end } = params.dateFilter;
-    const startDate = start ? new Date(start) : now;
-    const endDate = end ? new Date(end) : now;
+    const startDate = start
+        ? new Date(new Date(start).setHours(0, 0, 0, 0)) // 12:00 AM
+        : new Date(now.setHours(0, 0, 0, 0));
+    const endDate = end
+        ? new Date(new Date(end).setHours(23, 59, 59, 999)) // 11:59:59 PM
+        : new Date(now.setHours(23, 59, 59, 999));
     const [dailySales, monthlySales, totalSales] = await Promise.all([
         prisma.order_table.aggregate({
             _sum: { order_total: true },
@@ -59,7 +63,7 @@ export const dashboardModel = async (params) => {
             daily: dailySales._sum.order_total || 0,
             monthly: monthlySales._sum.order_total || 0,
             total: totalSales._sum.order_total || 0,
-            currentDate: now,
+            currentDate: new Date(),
         },
         branches: {
             total: totalBranches,
@@ -68,7 +72,7 @@ export const dashboardModel = async (params) => {
             daily: dailyWithdrawals._sum.reseller_withdrawal_amount || 0,
             monthly: monthlyWithdrawals._sum.reseller_withdrawal_amount || 0,
             total: totalWithdrawals._sum.reseller_withdrawal_amount || 0,
-            currentDate: now,
+            currentDate: new Date(),
         },
     };
 };

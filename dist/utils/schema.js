@@ -2,7 +2,7 @@ import { z } from "zod";
 //checkout schema
 export const checkoutSchema = z.object({
     checkoutNumber: z.string().min(8).max(8),
-    referralCode: z.string().optional(),
+    referralCode: z.string().optional().nullable(),
 });
 //payment schema
 export const paymentSchema = z
@@ -136,9 +136,22 @@ export const productPublicSchema = z.object({
     search: z.string().optional(),
     category: z.string().optional(),
     sort: z
-        .enum(["newest", "oldest", "price_asc", "price_desc", "featured"])
+        .enum([
+        "newest",
+        "oldest",
+        "price_asc",
+        "price_desc",
+        "featured",
+        "best_seller",
+    ])
         .optional(),
     take: z.coerce.number().min(1).max(15),
     skip: z.coerce.number().min(1),
     branch: z.string().optional().default("16dcbf9a-1904-43f7-a98a-060f6903661d"),
+});
+export const cartGetQuantitySchema = z.object({
+    items: z.array(z.object({
+        product_variant_id: z.string(),
+        product_variant_size: z.string(),
+    })),
 });

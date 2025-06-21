@@ -20,12 +20,13 @@ export const productGetController = async (c) => {
             }, 500);
         }
     }
+    [];
 };
 export const productCreateController = async (c) => {
     try {
         const params = c.get("params");
-        await productCreateModel(params);
-        return c.json({ message: "Product created successfully" }, 200);
+        const data = await productCreateModel(params);
+        return c.json(data, 200);
     }
     catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError) {

@@ -69,7 +69,7 @@ export const productUpdateMiddleware = async (c, next) => {
         return c.json({ message: "Invalid request" }, 400);
     }
     c.set("params", validate.data);
-    return await next();
+    await next();
 };
 export const productCollectionSlugMiddleware = async (c, next) => {
     const user = await adminAuthProtection(c);

@@ -29,6 +29,7 @@ export const registerSchema = z.object({
     cart: z.array(productSchema).optional(),
 });
 export const cartPostSchema = z.object({
+    cart_id: z.string().uuid(),
     product_id: z.string().uuid(),
     product_name: z.string(),
     product_price: z.number(),
@@ -46,6 +47,10 @@ export const cartDeleteSchema = z.object({
 export const cartPutSchema = z.object({
     id: z.string().uuid(),
     product_quantity: z.number(),
+});
+export const cartCheckoutSchema = z.object({
+    items: z.array(z.string().uuid()),
+    cartItems: z.array(cartPostSchema).optional(),
 });
 export const productVariantSchema = z.object({
     product_variant_color: z.string(),
@@ -74,6 +79,7 @@ export const productCreateSchema = z.array(z.object({
     product_slug: z.string(),
     product_team_id: z.string(),
     product_variants: z.array(productVariantSchema),
+    product_size_guide_url: z.string().optional(),
 }));
 export const productCollectionSlugSchema = z.object({
     collectionSlug: z.string().min(1),
@@ -86,11 +92,14 @@ export const orderGetListSchema = z.object({
     take: z.number(),
     skip: z.number(),
     search: z.string().optional(),
-    dateFilter: z.object({
+    dateFilter: z
+        .object({
         start: z.string().optional(),
         end: z.string().optional(),
-    }),
-    teamId: z.string().uuid(),
+    })
+        .optional(),
+    teamId: z.string().uuid().optional(),
+    userId: z.string().uuid().optional(),
 });
 export const userPostSchema = z.object({
     search: z.string().optional(),
@@ -160,4 +169,11 @@ export const dashboardSchema = z.object({
         end: z.string().optional(),
     }),
     teamId: z.string().uuid(),
+});
+export const userChangePasswordSchema = z.object({
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    userId: z.string().uuid(),
+});
+export const newsletterSubscribeSchema = z.object({
+    email: z.string().email(),
 });

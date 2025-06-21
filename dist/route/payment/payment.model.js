@@ -1,5 +1,7 @@
 import axios from "axios";
+import { Resend } from "resend";
 import prisma from "../../utils/prisma.js";
+const resend = new Resend(process.env.RESEND_API_KEY);
 export const createPaymentIntent = async (params, user) => {
     const { amount, productVariant, order_number, email, firstName, lastName, phone, address, city, province, postalCode, barangay, referralCode, } = params;
     const productVariantIds = productVariant.map((item) => item.product_variant_id);
@@ -99,18 +101,6 @@ export const createPaymentIntent = async (params, user) => {
                 size: variant.product_variant_size,
                 color: variant.product_variant_color,
             })),
-        });
-        await tx.variant_size_table.updateMany({
-            where: {
-                variant_size_variant_id: {
-                    in: productVariant.map((variant) => variant.product_variant_id),
-                },
-            },
-            data: {
-                variant_size_quantity: {
-                    decrement: productVariant.reduce((total, variant) => total + variant.product_variant_quantity, 0),
-                },
-            },
         });
         return {
             paymentIntent: data.data.id,
@@ -214,6 +204,15 @@ export const createPaymentMethod = async (params) => {
 };
 export const getPayment = async (params) => {
     try {
+        const orderDetails = await prisma.order_table.findUnique({
+            where: { order_number: params.orderNumber },
+            include: {
+                order_items: true,
+            },
+        });
+        if (orderDetails?.order_status !== "PENDING") {
+            throw new Error("Payment already processed");
+        }
         // 🔄 1️⃣ Retrieve Payment Intent
         const paymentIntent = await axios.get(`https://api.paymongo.com/v1/payment_intents/${params.paymentIntentId}?client_key=${params.clientKey}`, {
             headers: {
@@ -237,17 +236,18 @@ export const getPayment = async (params) => {
             default:
                 orderStatus = "PENDING";
         }
-        await prisma.order_table.update({
-            where: { order_number: params.orderNumber },
-            data: { order_status: orderStatus },
-        });
-        const orderDetails = await prisma.order_table.findUnique({
-            where: { order_number: params.orderNumber },
-            include: {
-                order_items: true,
-            },
-        });
         await prisma.$transaction(async (tx) => {
+            const status = !!(await tx.order_table.findUnique({
+                where: { order_number: params.orderNumber, order_status: "PENDING" },
+                select: { order_status: true },
+            }));
+            if (!status) {
+                throw new Error("Payment already processed");
+            }
+            await tx.order_table.update({
+                where: { order_number: params.orderNumber },
+                data: { order_status: orderStatus },
+            });
             if (orderStatus === "PAID") {
                 if (orderDetails?.order_reseller_id) {
                     const referral = await tx.reseller_table.findUnique({
@@ -278,15 +278,84 @@ export const getPayment = async (params) => {
                         cart_product_variant_id: {
                             in: orderDetails?.order_items.map((item) => item.product_variant_id),
                         },
+                        cart_size: {
+                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
+                        },
                         cart_user_id: orderDetails?.order_user_id ?? undefined,
+                        cart_to_be_checked_out: true,
                     },
                 });
-            }
-            else {
                 await prisma.variant_size_table.updateMany({
                     where: {
                         variant_size_variant_id: {
                             in: orderDetails?.order_items.map((item) => item.product_variant_id),
+                        },
+                        variant_size_value: {
+                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
+                        },
+                    },
+                    data: {
+                        variant_size_quantity: {
+                            decrement: orderDetails?.order_items.reduce((total, item) => total + item.quantity, 0),
+                        },
+                    },
+                });
+                await resend.emails.send({
+                    from: "Payment Success <support@help.noir-clothing.com>",
+                    to: orderDetails?.order_email ?? "",
+                    subject: "🎉 Congratulations! Your Payment is Successful – Welcome to Noir Clothing!",
+                    text: `Congratulations on completing your purchase! Your payment was successful.}`,
+                    html: `
+              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+                <h2 style="color: #10B981; font-size: 24px;">🎉 Congratulations!</h2>
+                <p style="font-size: 16px;">We're excited to welcome you to <strong>Noir Clothing</strong>!</p>
+                <p style="font-size: 16px;">
+                  Your payment was <strong>successfully processed</strong>. You can now enjoy exclusive access to our latest collections and rewards.
+                </p>
+                <p style="font-size: 16px;">
+                  Track the status of your order anytime with the link below:
+                </p>
+                <p style="margin: 20px 0;">
+                  <a href="${orderDetails?.order_number ? `https://noir-clothing.com/track/${orderDetails.order_number}` : "#"}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    Track Your Order
+                  </a>
+                </p>
+                <br />
+                <p style="font-size: 14px; color: #555;">Thank you for trusting Noir Clothing. We’re excited to have you with us!</p>
+                <p style="font-weight: bold;">– The Noir Clothing Team</p>
+              </div>
+            `,
+                });
+            }
+            else {
+                await resend.emails.send({
+                    from: "Noir Clothing Support <support@help.noir-clothing.com>",
+                    to: orderDetails?.order_email ?? "",
+                    subject: "Payment Unsuccessful - Please Try Again",
+                    text: `Hi there, unfortunately your payment could not be processed. Please try again or contact our support team if the issue persists.`,
+                    html: `
+              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+                <h2 style="color: #EF4444; font-size: 24px;">Payment Unsuccessful</h2>
+                <p style="font-size: 16px; margin-bottom: 16px;">
+                  Unfortunately, we were unable to process your payment.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 16px;">
+                  Please try again. If the issue continues, feel free to reach out to our support team for assistance.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 32px;">
+                  We apologize for the inconvenience and appreciate your patience.
+                </p>
+                <p style="font-weight: bold;">– The Noir Clothing Team</p>
+              </div>
+            `,
+                });
+                await prisma.variant_size_table.updateMany({
+                    where: {
+                        variant_size_variant_id: {
+                            in: orderDetails?.order_items.map((item) => item.product_variant_id),
+                        },
+                        variant_size_value: {
+                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
                         },
                     },
                     data: {

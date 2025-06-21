@@ -1,7 +1,9 @@
 import { Prisma } from "@prisma/client";
+import { Resend } from "resend";
 import { slugifyVariant } from "../../utils/function.js";
 import prisma from "../../utils/prisma.js";
 import { redis } from "../../utils/redis.js";
+const resendClient = new Resend(process.env.RESEND_API_KEY);
 export const productCollectionModel = async (params) => {
     const { search, take, skip, teamId } = params;
     const filter = {};
@@ -60,9 +62,10 @@ export const productCreateModel = async (params) => {
     return productCategory;
 };
 export const productVariantCreateModel = async (params) => {
+    const productsCreated = [];
     await prisma.$transaction(async (tx) => {
         for (const product of params) {
-            const { product_category_id, product_description, product_id, product_name, product_price, product_sale_percentage, product_slug, product_team_id, product_variants, } = product;
+            const { product_category_id, product_description, product_id, product_name, product_price, product_sale_percentage, product_slug, product_team_id, product_variants, product_size_guide_url, } = product;
             // Create product
             await tx.product_table.create({
                 data: {
@@ -74,6 +77,7 @@ export const productVariantCreateModel = async (params) => {
                     product_sale_percentage,
                     product_slug,
                     product_team_id,
+                    product_size_guide_url,
                 },
             });
             // Create product variants
@@ -105,14 +109,52 @@ export const productVariantCreateModel = async (params) => {
                     });
                 }
             }
+            // 📦 Save product info for later email sending
+            productsCreated.push({
+                product_name,
+                product_description,
+                product_slug,
+                product_variants,
+            });
         }
     });
+    // ✅ After transaction success, send broadcast emails
+    for (const product of productsCreated) {
+        const firstImage = product.product_variants[0]?.variant_sample_images[0]
+            ?.variant_sample_image_image_url ??
+            "https://via.placeholder.com/400x300";
+        const broadcast = await resendClient.broadcasts.create({
+            audienceId: process.env.RESEND_AUDIENCE_ID,
+            from: "Noir Clothing <support@help.noir-clothing.com>",
+            subject: `New Arrival Alert: ${product.product_name ?? "Our Latest Drop"}`,
+            html: `
+          <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+            <h2 style="color: #10B981; font-size: 24px;">New Product Launch!</h2>
+            <p style="font-size: 18px;">Introducing: <strong>${product.product_name ?? "Our Latest Product"}</strong></p>
+            <img src="${firstImage}" alt="${product.product_name ?? "Product Image"}" style="width: 100%; max-width: 400px; height: auto; margin: 20px 0; border-radius: 8px;" />
+            <p style="font-size: 16px;">
+              ${product.product_description ?? "Experience the perfect blend of style and comfort with our newest addition!"}
+            </p>
+            <p style="margin: 20px 0;">
+              <a href="https://noir-clothing.com/shop" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; font-weight: bold; border-radius: 5px;">
+                Shop Now
+              </a>
+            </p>
+            <br />
+            <p style="font-weight: bold;">– The Noir Clothing Team</p>
+          </div>
+        `,
+        });
+        await resendClient.broadcasts.send(broadcast.data?.id ?? "", {
+            scheduledAt: "in 1 min",
+        });
+    }
     return { message: "Product variant created successfully" };
 };
 export const productVariantUpdateModel = async (params) => {
     await prisma.$transaction(async (tx) => {
         for (const product of params) {
-            const { product_id, product_name, product_description, product_price, product_sale_percentage, product_slug, product_category_id, product_team_id, product_variants, } = product;
+            const { product_id, product_name, product_description, product_price, product_sale_percentage, product_slug, product_category_id, product_size_guide_url, product_team_id, product_variants, } = product;
             // 1. Update product_table
             await tx.product_table.update({
                 where: { product_id },
@@ -124,6 +166,7 @@ export const productVariantUpdateModel = async (params) => {
                     product_slug,
                     product_category_id,
                     product_team_id,
+                    product_size_guide_url,
                 },
             });
             for (const variant of product_variants) {
@@ -137,11 +180,17 @@ export const productVariantUpdateModel = async (params) => {
                     });
                     continue;
                 }
-                await tx.product_variant_table.update({
+                await tx.product_variant_table.upsert({
                     where: { product_variant_id },
-                    data: {
+                    update: {
                         product_variant_color,
                         product_variant_slug,
+                    },
+                    create: {
+                        product_variant_id,
+                        product_variant_color,
+                        product_variant_slug,
+                        product_variant_product_id: product_id,
                     },
                 });
                 await tx.variant_size_table.deleteMany({
