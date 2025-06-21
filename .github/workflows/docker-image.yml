@@ -41,20 +41,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # - name: Set up kubectl
-      #   uses: azure/setup-kubectl@v3
-      #   with:
-      #     version: "v1.25.4"
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: "v1.25.4"
 
-      # - name: Create kubeconfig
-      #   run: |
-      #     mkdir -p $HOME/.kube
-      #     echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > $HOME/.kube/config
+      - name: Create kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > $HOME/.kube/config
 
-      # - name: Deploy to Kubernetes
-      #   run: |
-      #     echo "🚀 Updating image in deployment 'noah-server'... .."
-      #     kubectl set image deployment/noah-server noah-server=ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }} -n noah
+      - name: Deploy to Kubernetes
+        run: |
+          echo "🚀 Updating image in deployment 'noah-be'... .."
+          kubectl set image deployment/noah-be noah-be=ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }} -n noir
 
-      #     echo "⏳ Waiting for rollout to complete..."
-      #     kubectl rollout status deployment/noah-server -n noah
+          echo "⏳ Waiting for rollout to complete..."
+          kubectl rollout status deployment/noah-be -n noir
