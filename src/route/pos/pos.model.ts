@@ -34,7 +34,7 @@ export const getPosProducts = async (take: number, skip: number) => {
       },
     },
     take,
-    skip,
+    skip: offset,
   });
 
   const count = await prisma.product_variant_table.count({
