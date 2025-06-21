@@ -59,7 +59,6 @@ export const cartGetQuantityMiddleware = async (c: Context, next: Next) => {
   const validated = cartGetQuantitySchema.safeParse(params);
 
   if (!validated.success) {
-    console.log(validated.error);
     return c.json({ message: "Invalid request" }, 400);
   }
 
