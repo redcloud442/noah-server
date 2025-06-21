@@ -11,6 +11,15 @@ export const getUserModel = async (params: {
   activeTeamId: string;
   role: string;
 }) => {
+  const cacheKey = `user-${params.userId}`;
+
+  const cachedData = await redis.get(cacheKey);
+
+  if (cachedData) {
+    return cachedData;
+  }
+
+  let returnData;
   if (params.role !== "RESELLER") {
     const userData = await prisma.user_table.findUnique({
       where: {
@@ -21,42 +30,41 @@ export const getUserModel = async (params: {
         user_email: true,
         user_first_name: true,
         user_last_name: true,
-      },
-    });
-
-    const teamMemberProfile = await prisma.team_member_table.findFirst({
-      where: {
-        team_member_user_id: params.userId,
-        team_member_active_team_id: params.activeTeamId,
-      },
-      select: {
-        team_member_id: true,
-        team_member_role: true,
-        team_member_team_id: true,
-        team_member_date_created: true,
-        team_member_request_reseller: true,
-        team_member_team: {
+        team_member_table: {
           select: {
-            team_id: true,
-            team_name: true,
-            team_date_created: true,
-          },
-        },
-        team_member_team_group: {
-          select: {
-            team_group_member_id: true,
-            team_group_member_date_created: true,
-            team_group_member_team_member: {
+            team_member_id: true,
+            team_member_role: true,
+            team_member_team_id: true,
+            team_member_date_created: true,
+            team_member_request_reseller: true,
+            team_member_team_group: {
               select: {
-                team_member_id: true,
-                team_member_role: true,
-                team_member_team_id: true,
+                team_group_member_id: true,
+                team_group_member_date_created: true,
+                team_group_member_team_member: {
+                  select: {
+                    team_member_id: true,
+                    team_member_role: true,
+                    team_member_team_id: true,
+                  },
+                },
+              },
+              take: 1,
+            },
+            team_member_team: {
+              select: {
+                team_id: true,
+                team_name: true,
+                team_date_created: true,
               },
             },
           },
+          take: 1,
         },
       },
     });
+
+    const teamMemberProfile = userData?.team_member_table[0];
 
     const formattedTeamMemberProfile = {
       team_member_id: teamMemberProfile?.team_member_id,
@@ -86,12 +94,16 @@ export const getUserModel = async (params: {
       team_member_active_team_id: params.activeTeamId,
     };
 
-    const data = {
+    returnData = {
       userProfile: userData,
       teamMemberProfile: formattedTeamMemberProfile,
     };
 
-    return data;
+    await redis.set(cacheKey, JSON.stringify(returnData), {
+      ex: 60 * 10,
+    });
+
+    return returnData;
   } else {
     const userData = await prisma.user_table.findUnique({
       where: {
@@ -102,42 +114,48 @@ export const getUserModel = async (params: {
         user_email: true,
         user_first_name: true,
         user_last_name: true,
-      },
-    });
-
-    const teamMemberProfile = await prisma.team_member_table.findFirst({
-      where: {
-        team_member_user_id: params.userId,
-        team_member_active_team_id: params.activeTeamId,
-      },
-      select: {
-        team_member_id: true,
-        team_member_role: true,
-        team_member_team_id: true,
-        team_member_date_created: true,
-        team_member_request_reseller: true,
-        team_member_team: {
+        team_member_table: {
           select: {
-            team_id: true,
-            team_name: true,
-            team_date_created: true,
-          },
-        },
-        team_member_team_group: {
-          select: {
-            team_group_member_id: true,
-            team_group_member_date_created: true,
-            team_group_member_team_member: {
+            team_member_id: true,
+            team_member_role: true,
+            team_member_team_id: true,
+            team_member_date_created: true,
+            team_member_request_reseller: true,
+            team_member_reseller: {
               select: {
-                team_member_id: true,
-                team_member_role: true,
-                team_member_team_id: true,
+                reseller_id: true,
+                reseller_code: true,
+              },
+              take: 1,
+            },
+            team_member_team_group: {
+              select: {
+                team_group_member_id: true,
+                team_group_member_date_created: true,
+                team_group_member_team_member: {
+                  select: {
+                    team_member_id: true,
+                    team_member_role: true,
+                    team_member_team_id: true,
+                  },
+                },
+              },
+              take: 1,
+            },
+            team_member_team: {
+              select: {
+                team_id: true,
+                team_name: true,
+                team_date_created: true,
               },
             },
           },
+          take: 1,
         },
       },
     });
+
+    const teamMemberProfile = userData?.team_member_table[0];
 
     const formattedTeamMemberProfile = {
       team_member_id: teamMemberProfile?.team_member_id,
@@ -167,19 +185,19 @@ export const getUserModel = async (params: {
       team_member_active_team_id: params.activeTeamId,
     };
 
-    const resellerData = await prisma.reseller_table.findFirst({
-      where: {
-        reseller_team_member_id: formattedTeamMemberProfile.team_member_id,
-      },
-    });
+    const resellerData = teamMemberProfile?.team_member_reseller[0];
 
-    const data = {
+    returnData = {
       userProfile: userData,
       teamMemberProfile: formattedTeamMemberProfile,
       resellerProfile: resellerData,
     };
 
-    return data;
+    await redis.set(cacheKey, JSON.stringify(returnData), {
+      ex: 60 * 10,
+    });
+
+    return returnData;
   }
 };
 
@@ -428,6 +446,8 @@ export const createResellerRequestModel = async (params: {
     throw new Error(email.error.message);
   }
 
+  await redis.del(`user-${params.userId}`);
+
   return {
     resellerCode,
   };
@@ -519,6 +539,7 @@ export const verifyResellerCodeModel = async (params: {
     throw new Error(email.error.message);
   }
 
+  await redis.del(`user-${params.userId}`);
   return {
     message: "OTP verified successfully",
     link: generateLinkData.properties.action_link,
@@ -543,6 +564,8 @@ export const userPatchModel = async (params: {
   type: "ban" | "promote";
   role: "ADMIN" | "MEMBER" | "RESELLER";
 }) => {
+  const cacheKey = `user-${params.id}`;
+
   if (params.type === "ban") {
     const { error } = await supabaseClient.auth.admin.updateUserById(
       params.id,
@@ -610,6 +633,8 @@ export const userPatchModel = async (params: {
       }
     });
   }
+
+  await redis.del(cacheKey);
 };
 
 export const userChangePasswordModel = async (params: {
