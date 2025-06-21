@@ -144,7 +144,7 @@ export const authCallbackModel = async (params: {
 }) => {
   const { email, firstName, lastName, userId, cart } = params;
 
-  let redirectTo = "http://localhost:3001/account";
+  let redirectTo = "https://www.noir-clothing.com/account";
 
   const isUserExists = await prisma.user_table.findUnique({
     where: {
