@@ -21,6 +21,7 @@ export const addPosProductController = async (c: Context) => {
 
     return c.json(posProduct);
   } catch (error) {
+    console.log(error);
     return c.json({ message: "Internal Server Error" }, 500);
   }
 };

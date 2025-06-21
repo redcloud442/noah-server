@@ -132,15 +132,16 @@ export const checkOutPosProduct = async (
         order_status: OrderStatus.PAID,
         order_total: total_amount,
         order_team_id: "16dcbf9a-1904-43f7-a98a-060f6903661d",
+        order_items: {
+          createMany: {
+            data: cartItems.map((item) => ({
+              product_variant_id: item.product_variant_id,
+              size: item.product_variant_size,
+              quantity: item.product_quantity,
+            })),
+          },
+        },
       },
-    });
-
-    await tx.order_item_table.createMany({
-      data: cartItems.map((item) => ({
-        order_id: id,
-        product_variant_id: item.product_variant_id,
-        quantity: item.product_quantity,
-      })),
     });
 
     await tx.variant_size_table.updateMany({
