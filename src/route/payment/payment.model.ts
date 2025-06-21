@@ -265,7 +265,7 @@ export const createPaymentMethod = async (
         order_payment_method_id: createPaymentMethod.data.data.id,
         order_payment_method:
           payment_method === "card" ? "card" : payment_type?.toLowerCase(),
-        order_status: "PENDING",
+        order_status: "UNPAID",
       },
     });
 
@@ -313,7 +313,7 @@ export const getPayment = async (params: {
 
     const paymentStatus = paymentIntent.data.data.attributes.status;
 
-    let orderStatus: "PAID" | "CANCELED" | "PENDING" = "PENDING";
+    let orderStatus: "PAID" | "CANCELED" | "UNPAID" = "UNPAID";
 
     switch (paymentStatus) {
       case "succeeded":
@@ -323,12 +323,12 @@ export const getPayment = async (params: {
         orderStatus = "CANCELED";
         break;
       default:
-        orderStatus = "PENDING";
+        orderStatus = "UNPAID";
     }
 
     await prisma.$transaction(async (tx) => {
       const status = !!(await tx.order_table.findUnique({
-        where: { order_number: params.orderNumber, order_status: "PENDING" },
+        where: { order_number: params.orderNumber, order_status: "UNPAID" },
         select: { order_status: true },
       }));
 
@@ -403,57 +403,7 @@ export const getPayment = async (params: {
             },
           },
         });
-
-        await resend.emails.send({
-          from: "Payment Success <support@help.noir-clothing.com>",
-          to: orderDetails?.order_email ?? "",
-          subject:
-            "🎉 Congratulations! Your Payment is Successful – Welcome to Noir Clothing!",
-          text: `Congratulations on completing your purchase! Your payment was successful.}`,
-          html: `
-              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-                <h2 style="color: #10B981; font-size: 24px;">🎉 Congratulations!</h2>
-                <p style="font-size: 16px;">We're excited to welcome you to <strong>Noir Clothing</strong>!</p>
-                <p style="font-size: 16px;">
-                  Your payment was <strong>successfully processed</strong>. You can now enjoy exclusive access to our latest collections and rewards.
-                </p>
-                <p style="font-size: 16px;">
-                  Track the status of your order anytime with the link below:
-                </p>
-                <p style="margin: 20px 0;">
-                  <a href="${orderDetails?.order_number ? `https://noir-clothing.com/track/${orderDetails.order_number}` : "#"}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                    Track Your Order
-                  </a>
-                </p>
-                <br />
-                <p style="font-size: 14px; color: #555;">Thank you for trusting Noir Clothing. We’re excited to have you with us!</p>
-                <p style="font-weight: bold;">– The Noir Clothing Team</p>
-              </div>
-            `,
-        });
       } else {
-        await resend.emails.send({
-          from: "Noir Clothing Support <support@help.noir-clothing.com>",
-          to: orderDetails?.order_email ?? "",
-          subject: "Payment Unsuccessful - Please Try Again",
-          text: `Hi there, unfortunately your payment could not be processed. Please try again or contact our support team if the issue persists.`,
-          html: `
-              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-                <h2 style="color: #EF4444; font-size: 24px;">Payment Unsuccessful</h2>
-                <p style="font-size: 16px; margin-bottom: 16px;">
-                  Unfortunately, we were unable to process your payment.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 16px;">
-                  Please try again. If the issue continues, feel free to reach out to our support team for assistance.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 32px;">
-                  We apologize for the inconvenience and appreciate your patience.
-                </p>
-                <p style="font-weight: bold;">– The Noir Clothing Team</p>
-              </div>
-            `,
-        });
-
         await prisma.variant_size_table.updateMany({
           where: {
             variant_size_variant_id: {
