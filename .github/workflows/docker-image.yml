@@ -53,8 +53,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo "🚀 Updating image in deployment 'noah-be'... .."
-          kubectl set image deployment/noah-be noah-be=ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }} -n noir
+          echo "🚀 Updating image in deployment 'noir-be'... .."
+          kubectl set image deployment/noir-be noah-be=ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }} -n noir
 
           echo "⏳ Waiting for rollout to complete..."
-          kubectl rollout status deployment/noah-be -n noir
+          kubectl rollout status deployment/noir-be -n noir
