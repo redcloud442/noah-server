@@ -1,65 +1,79 @@
-import axios from "axios";
-import { Resend } from "resend";
+import axios, { AxiosError } from "axios";
 import prisma from "../../utils/prisma.js";
-const resend = new Resend(process.env.RESEND_API_KEY);
 export const createPaymentIntent = async (params, user) => {
     const { amount, productVariant, order_number, email, firstName, lastName, phone, address, city, province, postalCode, barangay, referralCode, } = params;
     const productVariantIds = productVariant.map((item) => item.product_variant_id);
-    const existingProducts = await prisma.product_variant_table.findMany({
-        where: {
-            product_variant_id: { in: productVariantIds },
-        },
-        select: {
-            product_variant_id: true,
-            variant_sizes: {
-                select: {
-                    variant_size_quantity: true,
-                },
-            },
-        },
-    });
-    const productStockMap = new Map(existingProducts.map((product) => [
-        product.product_variant_id,
-        product.variant_sizes.reduce((total, size) => total + size.variant_size_quantity, 0),
-    ]));
-    for (const item of productVariant) {
-        const availableStock = productStockMap.get(item.product_variant_id);
-        if (availableStock === undefined) {
-            throw new Error(`Product variant ${item.product_variant_id} not found.`);
-        }
-        if (availableStock < item.product_variant_quantity) {
-            throw new Error(`Insufficient stock for product ${item.product_variant_id}.`);
-        }
-    }
-    const dataAmount = Math.round(amount * 100);
-    const response = await axios.post("https://api.paymongo.com/v1/payment_intents", {
-        data: {
-            attributes: {
-                amount: dataAmount, // must be an integer in centavos
-                payment_method_allowed: ["card", "dob", "paymaya", "gcash"],
-                payment_method_options: {
-                    card: {
-                        request_three_d_secure: "any",
-                    },
-                },
-                currency: "PHP",
-                capture_type: "automatic",
-                description: `Payment for order ${order_number}`,
-                statement_descriptor: "Order Payment",
-            },
-        },
-    }, {
-        headers: {
-            accept: "application/json",
-            "content-type": "application/json",
-            authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ":").toString("base64")}`,
-        },
-    });
-    if (response.status !== 200) {
-        throw new Error("Failed to create payment intent");
-    }
-    const data = response.data;
     const paymentIntent = await prisma.$transaction(async (tx) => {
+        const placeholders = productVariantIds
+            .map((_, i) => `$${i + 1}::uuid`)
+            .join(", ");
+        const lockedStock = await tx.$queryRawUnsafe(`
+    SELECT
+      pvt.product_variant_id,
+      vs.variant_size_value,
+      vs.variant_size_quantity
+    FROM product_schema.product_variant_table pvt
+    JOIN product_schema.variant_size_table vs
+      ON vs.variant_size_variant_id = pvt.product_variant_id
+    WHERE pvt.product_variant_id IN (${placeholders})
+    FOR UPDATE
+    `, ...productVariantIds);
+        // Build nested Map<variant_id, Map<size, quantity>>
+        const productStockMap = new Map();
+        for (const product of lockedStock) {
+            if (!productStockMap.has(product.product_variant_id)) {
+                productStockMap.set(product.product_variant_id, new Map());
+            }
+            productStockMap
+                .get(product.product_variant_id)
+                .set(product.variant_size_value, product.variant_size_quantity);
+        }
+        // Validate
+        for (const item of productVariant) {
+            const sizeMap = productStockMap.get(item.product_variant_id);
+            const sizeKey = item.product_variant_size ?? "";
+            const availableStock = sizeMap?.get(sizeKey);
+            if (availableStock === undefined) {
+                throw new Error(`Product variant ${item.product_variant_id} with size ${sizeKey} not found.`);
+            }
+            if (availableStock < item.product_variant_quantity) {
+                throw new Error(`Insufficient stock for product ${item.product_variant_id} size ${sizeKey}.`);
+            }
+        }
+        const dataAmount = Math.round(amount * 100);
+        const response = await axios.post("https://api.paymongo.com/v1/payment_intents", {
+            data: {
+                attributes: {
+                    amount: dataAmount, // must be an integer in centavos
+                    payment_method_allowed: [
+                        "card",
+                        "dob",
+                        "paymaya",
+                        "gcash",
+                        "grab_pay",
+                    ],
+                    payment_method_options: {
+                        card: {
+                            request_three_d_secure: "any",
+                        },
+                    },
+                    currency: "PHP",
+                    capture_type: "automatic",
+                    description: `Payment for order ${order_number}`,
+                    statement_descriptor: "Order Payment",
+                },
+            },
+        }, {
+            headers: {
+                accept: "application/json",
+                "content-type": "application/json",
+                authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ":").toString("base64")}`,
+            },
+        });
+        if (response.status !== 200) {
+            throw new Error("Failed to create payment intent");
+        }
+        const data = response.data;
         let referral = null;
         if (referralCode) {
             const referralData = await prisma.reseller_table.findUnique({
@@ -110,7 +124,7 @@ export const createPaymentIntent = async (params, user) => {
         };
     });
     return {
-        paymentIntent: data.data.id,
+        paymentIntent: paymentIntent.paymentIntent,
         paymentIntentStatus: "SUCCESS",
         order_id: paymentIntent.order_id,
         order_number: order_number,
@@ -128,28 +142,47 @@ export const createPaymentMethod = async (params) => {
         if (!orderDetails) {
             throw new Error("Order not found");
         }
-        let expiry_year, expiry_month;
+        let expiry_month, expiry_year;
         if (payment_details?.card.card_expiry) {
             [expiry_month, expiry_year] = payment_details.card.card_expiry.split("/");
-            if (!expiry_year || !expiry_month) {
-                throw new Error("Invalid card expiry format. Expected YYYY-MM");
+            if (!expiry_month || !expiry_year) {
+                throw new Error("Invalid card expiry format. Expected MM/YY");
+            }
+            // Convert to full year (e.g., "31" → 2031)
+            if (expiry_year.length === 2) {
+                expiry_year = `${expiry_year}`;
             }
         }
         const createPaymentMethod = await axios.post("https://api.paymongo.com/v1/payment_methods", {
             data: {
                 attributes: {
-                    type: payment_method === "card" ? "card" : payment_type?.toLowerCase(),
+                    type: payment_method === "card"
+                        ? "card"
+                        : payment_method === "online_banking"
+                            ? "dob"
+                            : payment_type?.toLowerCase() === "grabpay"
+                                ? "grab_pay"
+                                : payment_type?.toLowerCase(),
                     details: payment_method === "card"
                         ? {
-                            card: {
-                                number: payment_details?.card.card_number,
-                                expiry_year,
-                                expiry_month,
-                                cvv: payment_details?.card.card_cvv,
-                            },
+                            card_number: payment_details?.card.card_number,
+                            exp_month: parseInt(expiry_month ?? "0"),
+                            exp_year: parseInt(expiry_year ?? "0"),
+                            cvc: payment_details?.card.card_cvv,
                         }
-                        : undefined,
+                        : payment_method === "online_banking"
+                            ? {
+                                bank_code: payment_type?.toLowerCase() === "bpi" ? "bpi" : "ubp",
+                            }
+                            : undefined,
                     billing: {
+                        address: {
+                            line1: orderDetails.order_address,
+                            city: orderDetails.order_city,
+                            state: orderDetails.order_state,
+                            postal_code: orderDetails.order_postal_code,
+                            country: "PH",
+                        },
                         name: `${orderDetails.order_first_name} ${orderDetails.order_last_name}`,
                         email: orderDetails.order_email,
                         phone: orderDetails.order_phone,
@@ -172,7 +205,7 @@ export const createPaymentMethod = async (params) => {
                 attributes: {
                     payment_method: createPaymentMethod.data.data.id,
                     client_key: createPaymentMethod.data.data.attributes.client_key,
-                    return_url: `http://localhost:3001/payment/pn/${orderDetails.order_number}/redirect`,
+                    return_url: `${process.env.NODE_ENV === "development" ? "http://localhost:3001" : "https://www.noir-clothing.com"}/payment/pn/${orderDetails.order_number}/redirect`,
                 },
             },
         }, {
@@ -190,7 +223,7 @@ export const createPaymentMethod = async (params) => {
             data: {
                 order_payment_method_id: createPaymentMethod.data.data.id,
                 order_payment_method: payment_method === "card" ? "card" : payment_type?.toLowerCase(),
-                order_status: "PENDING",
+                order_status: "UNPAID",
             },
         });
         return {
@@ -199,72 +232,66 @@ export const createPaymentMethod = async (params) => {
         };
     }
     catch (error) {
+        if (error instanceof AxiosError) {
+            console.log(error.response?.data);
+        }
         throw new Error("Payment process failed");
     }
 };
-export const getPayment = async (params) => {
+export const getPayment = async ({ paymentIntentId, clientKey, orderNumber, }) => {
     try {
-        const orderDetails = await prisma.order_table.findUnique({
-            where: { order_number: params.orderNumber },
-            include: {
-                order_items: true,
-            },
-        });
-        if (orderDetails?.order_status !== "PENDING") {
-            throw new Error("Payment already processed");
-        }
-        // 🔄 1️⃣ Retrieve Payment Intent
-        const paymentIntent = await axios.get(`https://api.paymongo.com/v1/payment_intents/${params.paymentIntentId}?client_key=${params.clientKey}`, {
+        // 🔄 Retrieve Payment Intent from PayMongo
+        const paymentIntent = await axios.get(`https://api.paymongo.com/v1/payment_intents/${paymentIntentId}?client_key=${clientKey}`, {
             headers: {
                 accept: "application/json",
                 "content-type": "application/json",
                 authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY + ":").toString("base64")}`,
             },
         });
-        if (paymentIntent.status !== 200 || !paymentIntent.data.data) {
-            throw new Error("Payment intent not found");
+        if (paymentIntent.status !== 200 || !paymentIntent.data?.data) {
+            throw new Error("Failed to retrieve payment intent from PayMongo");
         }
         const paymentStatus = paymentIntent.data.data.attributes.status;
-        let orderStatus = "PENDING";
-        switch (paymentStatus) {
-            case "succeeded":
-                orderStatus = "PAID";
-                break;
-            case "failed":
-                orderStatus = "CANCELED";
-                break;
-            default:
-                orderStatus = "PENDING";
-        }
+        const statusMap = {
+            succeeded: "PAID",
+            failed: "CANCELED",
+        };
+        const orderStatus = statusMap[paymentStatus] ?? "UNPAID";
         await prisma.$transaction(async (tx) => {
-            const status = !!(await tx.order_table.findUnique({
-                where: { order_number: params.orderNumber, order_status: "PENDING" },
-                select: { order_status: true },
-            }));
-            if (!status) {
-                throw new Error("Payment already processed");
-            }
+            const order = await tx.order_table.findUnique({
+                where: { order_number: orderNumber },
+                include: { order_items: true },
+            });
+            if (!order)
+                throw new Error("Order not found");
+            if (order.order_status !== "UNPAID")
+                throw new Error("Order already processed");
+            const variantIds = order.order_items.map((i) => i.product_variant_id);
+            const sizes = order.order_items.map((i) => i.size ?? "");
+            const quantities = order.order_items.reduce((sum, i) => sum + i.quantity, 0);
+            // Update order status
             await tx.order_table.update({
-                where: { order_number: params.orderNumber },
+                where: { order_number: orderNumber },
                 data: { order_status: orderStatus },
             });
             if (orderStatus === "PAID") {
-                if (orderDetails?.order_reseller_id) {
-                    const referral = await tx.reseller_table.findUnique({
-                        where: { reseller_id: orderDetails?.order_reseller_id ?? "" },
+                // Handle referral
+                if (order.order_reseller_id) {
+                    const reseller = await tx.reseller_table.findUnique({
+                        where: { reseller_id: order.order_reseller_id },
                     });
-                    if (referral) {
-                        const referralAmount = (orderDetails?.order_total ?? 0) * 0.1;
+                    if (reseller) {
+                        const referralAmount = (order.order_total ?? 0) * 0.1;
                         await tx.reseller_transaction_table.create({
                             data: {
-                                reseller_transaction_reseller_id: referral.reseller_id,
+                                reseller_transaction_reseller_id: reseller.reseller_id,
                                 reseller_transaction_amount: referralAmount,
                                 reseller_transaction_type: "REFERRAL",
                                 reseller_transaction_status: "NON-WITHDRAWABLE",
                             },
                         });
                         await tx.reseller_table.update({
-                            where: { reseller_id: referral.reseller_id },
+                            where: { reseller_id: reseller.reseller_id },
                             data: {
                                 reseller_non_withdrawable_earnings: {
                                     increment: referralAmount,
@@ -273,94 +300,40 @@ export const getPayment = async (params) => {
                         });
                     }
                 }
-                await tx.cart_table.deleteMany({
+                // Decrease inventory
+                await tx.variant_size_table.updateMany({
                     where: {
-                        cart_product_variant_id: {
-                            in: orderDetails?.order_items.map((item) => item.product_variant_id),
-                        },
-                        cart_size: {
-                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
-                        },
-                        cart_user_id: orderDetails?.order_user_id ?? undefined,
-                        cart_to_be_checked_out: true,
-                    },
-                });
-                await prisma.variant_size_table.updateMany({
-                    where: {
-                        variant_size_variant_id: {
-                            in: orderDetails?.order_items.map((item) => item.product_variant_id),
-                        },
-                        variant_size_value: {
-                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
-                        },
+                        variant_size_variant_id: { in: variantIds },
+                        variant_size_value: { in: sizes },
                     },
                     data: {
                         variant_size_quantity: {
-                            decrement: orderDetails?.order_items.reduce((total, item) => total + item.quantity, 0),
+                            decrement: quantities,
                         },
                     },
                 });
-                await resend.emails.send({
-                    from: "Payment Success <support@help.noir-clothing.com>",
-                    to: orderDetails?.order_email ?? "",
-                    subject: "🎉 Congratulations! Your Payment is Successful – Welcome to Noir Clothing!",
-                    text: `Congratulations on completing your purchase! Your payment was successful.}`,
-                    html: `
-              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-                <h2 style="color: #10B981; font-size: 24px;">🎉 Congratulations!</h2>
-                <p style="font-size: 16px;">We're excited to welcome you to <strong>Noir Clothing</strong>!</p>
-                <p style="font-size: 16px;">
-                  Your payment was <strong>successfully processed</strong>. You can now enjoy exclusive access to our latest collections and rewards.
-                </p>
-                <p style="font-size: 16px;">
-                  Track the status of your order anytime with the link below:
-                </p>
-                <p style="margin: 20px 0;">
-                  <a href="${orderDetails?.order_number ? `https://noir-clothing.com/track/${orderDetails.order_number}` : "#"}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                    Track Your Order
-                  </a>
-                </p>
-                <br />
-                <p style="font-size: 14px; color: #555;">Thank you for trusting Noir Clothing. We’re excited to have you with us!</p>
-                <p style="font-weight: bold;">– The Noir Clothing Team</p>
-              </div>
-            `,
-                });
+                // Delete checked out cart items
+                if (order.order_user_id) {
+                    await tx.cart_table.deleteMany({
+                        where: {
+                            cart_product_variant_id: { in: variantIds },
+                            cart_size: { in: sizes },
+                            cart_user_id: order.order_user_id,
+                            cart_to_be_checked_out: true,
+                        },
+                    });
+                }
             }
             else {
-                await resend.emails.send({
-                    from: "Noir Clothing Support <support@help.noir-clothing.com>",
-                    to: orderDetails?.order_email ?? "",
-                    subject: "Payment Unsuccessful - Please Try Again",
-                    text: `Hi there, unfortunately your payment could not be processed. Please try again or contact our support team if the issue persists.`,
-                    html: `
-              <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-                <h2 style="color: #EF4444; font-size: 24px;">Payment Unsuccessful</h2>
-                <p style="font-size: 16px; margin-bottom: 16px;">
-                  Unfortunately, we were unable to process your payment.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 16px;">
-                  Please try again. If the issue continues, feel free to reach out to our support team for assistance.
-                </p>
-                <p style="font-size: 16px; margin-bottom: 32px;">
-                  We apologize for the inconvenience and appreciate your patience.
-                </p>
-                <p style="font-weight: bold;">– The Noir Clothing Team</p>
-              </div>
-            `,
-                });
-                await prisma.variant_size_table.updateMany({
+                // Return stock if failed
+                await tx.variant_size_table.updateMany({
                     where: {
-                        variant_size_variant_id: {
-                            in: orderDetails?.order_items.map((item) => item.product_variant_id),
-                        },
-                        variant_size_value: {
-                            in: orderDetails?.order_items.map((item) => item.size ?? ""),
-                        },
+                        variant_size_variant_id: { in: variantIds },
+                        variant_size_value: { in: sizes },
                     },
                     data: {
                         variant_size_quantity: {
-                            increment: orderDetails?.order_items.reduce((total, item) => total + item.quantity, 0),
+                            increment: quantities,
                         },
                     },
                 });
@@ -369,6 +342,10 @@ export const getPayment = async (params) => {
         return { orderStatus, paymentStatus };
     }
     catch (error) {
+        if (error instanceof AxiosError) {
+            console.error("PayMongo error:", error.response?.data);
+        }
+        console.error("GetPayment failed:", error);
         throw new Error("Failed to retrieve payment status");
     }
 };
