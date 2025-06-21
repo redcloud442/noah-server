@@ -42,7 +42,6 @@ export const cartPostController = async (c: Context) => {
 
     return c.json(cart, 200);
   } catch (error) {
-    console.log(error);
     return c.json({ message: "Error" }, 500);
   }
 };

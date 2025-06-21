@@ -31,7 +31,8 @@ export const cartMiddleware = async (c: Context, next: Next) => {
   if (
     user.user_metadata.role !== "ADMIN" &&
     user.user_metadata.role !== "MEMBER" &&
-    user.user_metadata.role !== "RESELLER"
+    user.user_metadata.role !== "RESELLER" &&
+    user.user_metadata.role !== "CASHIER"
   ) {
     return c.json({ message: "Unauthorized" }, 401);
   }
@@ -58,7 +59,6 @@ export const cartGetQuantityMiddleware = async (c: Context, next: Next) => {
   const validated = cartGetQuantitySchema.safeParse(params);
 
   if (!validated.success) {
-    console.log(validated.error);
     return c.json({ message: "Invalid request" }, 400);
   }
 
@@ -87,7 +87,8 @@ export const cartPostMiddleware = async (c: Context, next: Next) => {
   if (
     user.user_metadata.role !== "ADMIN" &&
     user.user_metadata.role !== "MEMBER" &&
-    user.user_metadata.role !== "RESELLER"
+    user.user_metadata.role !== "RESELLER" &&
+    user.user_metadata.role !== "CASHIER"
   ) {
     return c.json({ message: "Unauthorized" }, 401);
   }
