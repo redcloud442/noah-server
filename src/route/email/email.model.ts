@@ -3,15 +3,17 @@ import { Resend } from "resend";
 export const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendEmail = async (
-  email: string,
+  to: string,
   subject: string,
-  message: string
+  text: string,
+  html: string
 ) => {
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: "Noir Clothing <no-reply@help.noir-clothing.com>",
-    to: email,
+    to,
     subject,
-    text: message,
+    text,
+    html,
   });
 
   return {

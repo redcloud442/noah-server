@@ -177,3 +177,9 @@ export const userChangePasswordSchema = z.object({
 export const newsletterSubscribeSchema = z.object({
     email: z.string().email(),
 });
+export const emailSchema = z.object({
+    to: z.string().email(),
+    subject: z.string(),
+    text: z.string(),
+    html: z.string(),
+});

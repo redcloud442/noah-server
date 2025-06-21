@@ -3,9 +3,9 @@ import { sendEmail } from "./email.model.js";
 
 export const emailController = async (c: Context) => {
   try {
-    const { email, subject, message } = c.get("params");
+    const { to, subject, text, html } = c.get("params");
 
-    const emailResponse = await sendEmail(email, subject, message);
+    const emailResponse = await sendEmail(to, subject, text, html);
 
     return c.json(emailResponse, 200);
   } catch (error) {
