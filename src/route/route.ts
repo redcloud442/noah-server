@@ -7,6 +7,7 @@ import address from "./address/address.route.js";
 import auth from "./auth/auth.route.js";
 import cart from "./cart/cart.route.js";
 import dashboard from "./dashboard/dashboard.route.js";
+import email from "./email/email.route.js";
 import newsletter from "./newsletter/newsletter.route.js";
 import order from "./order/order.route.js";
 import payment from "./payment/payment.route.js";
@@ -60,6 +61,9 @@ app.route("/publicRoutes", publicRoutes);
 
 // Newsletter
 app.route("/newsletter", newsletter);
+
+// Email
+app.route("/email", email);
 
 app.get("/", (c) => c.text("This is the api endpoint"));
 

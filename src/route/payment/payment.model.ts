@@ -1,13 +1,10 @@
 import type { user_table } from "@prisma/client";
 import axios, { AxiosError } from "axios";
-import { Resend } from "resend";
 import prisma from "../../utils/prisma.js";
 import type {
   CheckoutFormData,
   PaymentCreatePaymentFormData,
 } from "../../utils/schema.js";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const createPaymentIntent = async (
   params: CheckoutFormData,
@@ -440,8 +437,6 @@ export const getPayment = async ({
             },
           });
         }
-
-        await sendSuccessEmail(order.order_email, order.order_number);
       } else {
         // Return stock if failed
         await tx.variant_size_table.updateMany({
@@ -455,8 +450,6 @@ export const getPayment = async ({
             },
           },
         });
-
-        await sendFailureEmail(order.order_email);
       }
     });
 
@@ -469,84 +462,3 @@ export const getPayment = async ({
     throw new Error("Failed to retrieve payment status");
   }
 };
-
-async function sendSuccessEmail(email: string, orderNumber: string) {
-  if (!email) return;
-  await resend.emails.send({
-    from: "Noir Clothing <no-reply@help.noir-clothing.com>",
-    to: email,
-    subject: "Payment confirmed — Your order is on its way!",
-    text: `Hi there! Your payment has been successfully processed. Order #${orderNumber} is now being prepared for shipment. Track your order at noir-clothing.com/track/${orderNumber}`,
-    html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-
-            <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 40px 32px; text-align: center;">
-              <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 2px;">NOIR</div>
-              <div style="color: #a3a3a3; font-size: 12px; font-weight: 500; letter-spacing: 1px; margin-top: 4px;">CLOTHING</div>
-            </div>
-
-
-            <div style="text-align: center; padding: 32px 0 24px;">
-              <h1 style="color: #111827; font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.5px;">Payment Confirmed</h1>
-              <p style="color: #6b7280; font-size: 16px; margin: 0;">Your order is being prepared for shipment</p>
-            </div>
-
-            <div style="margin: 0 32px 32px; padding: 24px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-              <h3 style="color: #111827; font-size: 18px; font-weight: 600; margin: 0 0 16px;">Order Details</h3>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="color: #6b7280; font-size: 14px;">Order Number</span>
-                <span style="color: #111827; font-size: 14px;   : 600; font-family: 'SF Mono', Monaco, monospace;"> #${orderNumber}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <span style="color: #6b7280; font-size: 14px;">Order Date</span>
-                <span style="color: #111827; font-size: 14px; font-weight: 500;">${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #6b7280; font-size: 14px;">Status</span>
-                <span style="display: inline-flex; align-items: center; padding: 4px 8px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 600; border-radius: 6px;">
-                  <div style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; margin-right: 6px;"></div>
-                  PAID
-                </span>
-              </div>
-            </div>
-          </div>
-        `,
-  });
-}
-
-async function sendFailureEmail(email: string) {
-  if (!email) return;
-  await resend.emails.send({
-    from: "Noir Clothing <no-reply@help.noir-clothing.com>",
-    to: email,
-    subject: "Payment issue — Let's get this sorted",
-    text: `Hi there, we encountered an issue processing your payment. Please try again or contact our support team at support@noir-clothing.com if you need assistance.`,
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 40px 32px; text-align: center;">
-          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: 2px;">NOIR</div>
-          <div style="color: #a3a3a3; font-size: 12px; font-weight: 500; letter-spacing: 1px; margin-top: 4px;">CLOTHING</div>
-        </div>
-
-        <!-- Error Icon -->
-        <div style="text-align: center; padding: 32px 0 24px;">
-          <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #fef2f2; border: 2px solid #fecaca; border-radius: 50%; margin-bottom: 16px;">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-          </div>
-          <h1 style="color: #111827; font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.5px;">Payment Issue</h1>
-          <p style="color: #6b7280; font-size: 16px; margin: 0;">We encountered a problem processing your payment</p>
-        </div>
-
-        <!-- Issue Details -->
-        <div style="margin: 0 32px 32px; padding: 24px; background: #fef2f2; border-radius: 12px; border: 1px solid #fecaca;">
-          <h3 style="color: #991b1b; font-size: 18px; font-weight: 600; margin: 0 0 12px;">What happened?</h3>
-          <p style="color: #7f1d1d; font-size: 14px; margin: 0 0 16px; line-height: 1.5;">Your payment could not be processed at this time. This could be due to insufficient funds, an expired card, or a temporary issue with your payment method.</p>
-        </div>
-      </div>
-      `,
-  });
-}

@@ -249,3 +249,12 @@ export const newsletterSubscribeSchema = z.object({
 export type typeNewsletterSubscribeSchema = z.infer<
   typeof newsletterSubscribeSchema
 >;
+
+export const emailSchema = z.object({
+  to: z.string().email(),
+  subject: z.string(),
+  text: z.string(),
+  html: z.string(),
+});
+
+export type typeEmailSchema = z.infer<typeof emailSchema>;
