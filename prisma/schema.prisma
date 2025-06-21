@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["user_schema","team_schema", "product_schema", "order_schema", "category_schema", "payment_schema","location_schema","reseller_schema", "public"]
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELED
+  @@schema("order_schema")
+}
+
+model user_table {
+  user_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_first_name String
+  user_last_name String
+  user_email String @unique
+  user_created_at DateTime @default(now())
+  user_updated_at DateTime? @updatedAt
+
+
+  user_address_table user_address_table[]
+  cart_table cart_table[]
+
+  order_table order_table[]
+  team_member_table team_member_table[]
+
+  @@schema("user_schema")
+}
+
+model user_address_table {
+  user_address_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_address_first_name String
+  user_address_last_name String
+  user_address_email String
+  user_address_address String
+  user_address_city String
+  user_address_state String
+  user_address_barangay String
+  user_address_phone String
+  user_address_postal_code String
+  user_address_created_at DateTime @default(now()) @db.Timestamptz(3)
+  user_address_updated_at DateTime? @updatedAt @db.Timestamptz(3)
+  user_address_is_default Boolean @default(false)
+  user_address_user_id String @db.Uuid
+
+  user_address_user user_table @relation(fields: [user_address_user_id], references: [user_id], onDelete: Cascade)
+
+  @@schema("user_schema")
+}
+
+model team_table {
+  team_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_date_created DateTime @default(now())
+  team_name String
+  team_image String?
+
+  team_members team_member_table[]
+  team_group team_group_table[]
+  team_products product_table[]
+  team_orders order_table[]
+  team_product_categories product_category_table[]
+
+  @@schema("team_schema")
+}
+
+model team_member_table {
+  team_member_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_member_date_created DateTime @default(now())
+  team_member_role String
+  team_member_active_team_id String @db.Uuid
+  team_member_team_id String @db.Uuid
+  team_member_user_id String @db.Uuid
+  team_member_request_reseller Boolean @default(false)
+
+
+  team_member_team team_table @relation(fields: [team_member_team_id], references: [team_id], onDelete: Cascade)
+  team_member_user user_table @relation(fields: [team_member_user_id], references: [user_id], onDelete: Cascade)
+  team_member_team_group team_group_member_table[]
+  team_member_reseller reseller_table[]
+  team_member_reseller_withdrawals reseller_withdrawal_table[]
+  @@schema("team_schema")
+}
+
+model team_group_table {
+  team_group_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_group_date_created DateTime @default(now())
+  team_group_name String
+  team_group_team_id String @db.Uuid
+
+  team_group_team team_table @relation(fields: [team_group_team_id], references: [team_id], onDelete: Cascade)
+
+  @@schema("team_schema")
+}
+
+model team_group_member_table {
+  team_group_member_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_group_member_date_created DateTime @default(now())
+  team_group_member_member_id String @db.Uuid
+
+  team_group_member_team_member team_member_table @relation(fields: [team_group_member_member_id], references: [team_member_id], onDelete: Cascade)
+
+  @@schema("team_schema")
+}
+
+model cart_table {
+  cart_id                 String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cart_user_id            String @db.Uuid
+  cart_product_variant_id String @db.Uuid
+  cart_quantity           Int
+  cart_size               String
+  cart_created_at         DateTime @default(now()) @db.Timestamptz(3)
+  cart_updated_at         DateTime? @updatedAt @db.Timestamptz(3)
+
+  cart_user user_table @relation(fields: [cart_user_id], references: [user_id], onDelete: Cascade)
+  cart_product_variant product_variant_table @relation(fields: [cart_product_variant_id], references: [product_variant_id], onDelete: Cascade)
+
+  @@unique([cart_user_id, cart_product_variant_id, cart_size]) // Unique constraint
+
+  @@schema("order_schema")
+}
+
+model order_table {
+  order_id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_number     String @unique
+  order_payment_id String @unique
+  order_payment_method_id String?
+  order_payment_method    String?
+  order_email      String
+  order_first_name String
+  order_last_name  String
+  order_address    String
+  order_city       String
+  order_state      String
+  order_barangay   String
+  order_postal_code String
+  order_phone      String
+  order_status     OrderStatus
+  order_total      Float?
+  order_created_at DateTime  @default(now()) @db.Timestamptz(3)
+  order_updated_at DateTime? @updatedAt @db.Timestamptz(3)
+  order_user_id    String?    @db.Uuid
+  order_team_id   String    @db.Uuid
+  order_reseller_id String? @db.Uuid
+  order_reseller_is_processed Boolean @default(false)
+
+  order_user       user_table? @relation(fields: [order_user_id], references: [user_id], onDelete: Cascade)
+  order_team      team_table @relation(fields: [order_team_id], references: [team_id], onDelete: Cascade)
+  order_reseller reseller_table? @relation(fields: [order_reseller_id], references: [reseller_id], onDelete: Cascade)
+
+   order_items      order_item_table[]
+  @@schema("order_schema")
+}
+
+model order_item_table {
+  order_item_id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id           String    @db.Uuid
+  product_variant_id String    @db.Uuid
+  quantity           Int
+  price             Float?
+  size             String?
+  color             String?
+
+  order             order_table @relation(fields: [order_id], references: [order_id], onDelete: Cascade)
+  product_variant   product_variant_table @relation(fields: [product_variant_id], references: [product_variant_id], onDelete: Cascade)
+
+  @@unique([order_id, product_variant_id])
+  @@schema("order_schema")
+}
+
+model product_table {
+  product_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_name String
+  product_description String
+  product_price Int
+  product_sale_percentage Int @default(0)
+  product_created_at DateTime @default(now()) @db.Timestamptz(3)
+  product_updated_at DateTime? @updatedAt @db.Timestamptz(3)
+  product_size_guide_url String?
+  product_category_id String @db.Uuid
+  product_slug String? @unique
+  product_team_id String @db.Uuid
+  product_is_best_seller Boolean @default(false)
+
+  product_category product_category_table @relation(fields: [product_category_id], references: [product_category_id], onDelete: Cascade)
+  product_team team_table @relation(fields: [product_team_id], references: [team_id], onDelete: Cascade)
+  product_variants product_variant_table[]
+  @@schema("product_schema")
+}
+
+model product_category_table {
+  product_category_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_category_name String
+  product_category_description String
+  product_category_image String?
+  product_category_created_at DateTime @default(now()) @db.Timestamptz(3)
+  product_category_updated_at DateTime? @updatedAt @db.Timestamptz(3)
+  product_category_team_id String @db.Uuid
+  product_category_slug String
+
+  products product_table[]
+  product_category_team team_table @relation(fields: [product_category_team_id], references: [team_id], onDelete: Cascade)
+  @@schema("product_schema")
+}
+
+model product_variant_table {
+  product_variant_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product_variant_product_id String @db.Uuid
+  product_variant_color String
+  product_variant_slug String?
+  product_variant_is_deleted Boolean @default(false)
+  product_variant_is_featured Boolean @default(false)
+
+  product_variant_product product_table @relation(fields: [product_variant_product_id], references: [product_id], onDelete: Cascade)
+  cart_items cart_table[]
+  variant_sample_images variant_sample_image_table[]
+  variant_sizes variant_size_table[] // 👈 NEW
+  order_item_table order_item_table[]
+
+  @@schema("product_schema")
+}
+
+model variant_size_table {
+  variant_size_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  variant_size_variant_id String @db.Uuid
+  variant_size_value String
+  variant_size_quantity Int @default(0)
+
+  variant product_variant_table @relation(fields: [variant_size_variant_id], references: [product_variant_id], onDelete: Cascade)
+
+  @@schema("product_schema")
+}
+
+model variant_sample_image_table {
+  variant_sample_image_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  variant_sample_image_product_variant_id String @db.Uuid
+  variant_sample_image_image_url String
+  variant_sample_image_created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  variant_sample_image_product_variant product_variant_table @relation(fields: [variant_sample_image_product_variant_id], references: [product_variant_id], onDelete: Cascade)
+  @@schema("product_schema")
+}
+
+
+model reseller_table {
+  reseller_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reseller_created_at DateTime @default(now()) @db.Timestamptz(3)
+  reseller_non_withdrawable_earnings Float @default(0)
+  reseller_withdrawable_earnings Float @default(0)
+  reseller_team_member_id String @db.Uuid
+  reseller_code String @unique
+
+  reseller_team_member team_member_table @relation(fields: [reseller_team_member_id], references: [team_member_id], onDelete: Cascade)
+
+  reseller_withdrawals reseller_withdrawal_table[]
+  reseller_orders order_table[]
+  reseller_transactions reseller_transaction_table[]
+  @@schema("reseller_schema")
+}
+
+model reseller_withdrawal_table {
+  reseller_withdrawal_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reseller_withdrawal_amount Float
+  reseller_withdrawal_status String
+  reseller_withdrawal_bank_name String?
+  reseller_withdrawal_account_number String?
+  reseller_withdrawal_account_name String?
+  reseller_withdrawal_created_at DateTime @default(now()) @db.Timestamptz(3)
+  reseller_withdrawal_updated_at DateTime? @updatedAt @db.Timestamptz(3)
+  reseller_withdrawal_reseller_id String @db.Uuid
+  reseller_withdrawal_action_by String? @db.Uuid
+
+  reseller_withdrawal_reseller reseller_table @relation(fields: [reseller_withdrawal_reseller_id], references: [reseller_id], onDelete: Cascade)
+
+  action_by team_member_table? @relation(fields: [reseller_withdrawal_action_by], references: [team_member_id], onDelete: Cascade)
+
+  @@schema("reseller_schema")
+}
+
+model reseller_transaction_table {
+  reseller_transaction_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reseller_transaction_amount Float
+  reseller_transaction_created_at DateTime @default(now()) @db.Timestamptz(3)
+  reseller_transaction_reseller_id String @db.Uuid
+  reseller_transaction_type String
+  reseller_transaction_status String
+
+  reseller_transaction_reseller reseller_table @relation(fields: [reseller_transaction_reseller_id], references: [reseller_id], onDelete: Cascade)
+
+  @@schema("reseller_schema")
+}
+
+model newsletter_table {
+  newsletter_id String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  newsletter_email String @unique
+  newsletter_created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@schema("public")
+}

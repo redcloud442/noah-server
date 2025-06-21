@@ -1,0 +1,11 @@
+import { Hono } from "hono";
+import { protectionMiddleware } from "../../middleware/protection.middleware.js";
+import { authLoginController, authLogoutController, authRegisterController, authVerifyTokenController, } from "./auth.controller.js";
+import { authLoginMiddleware, authRegisterMiddleware, } from "./auth.middleware.js";
+const auth = new Hono();
+auth.post("/login", authLoginMiddleware, authLoginController);
+auth.post("/register", protectionMiddleware, authRegisterMiddleware, authRegisterController);
+auth.post("/logout", authLogoutController);
+auth.get("/user", protectionMiddleware, authVerifyTokenController);
+auth.get("/", (c) => c.text("Hello World"));
+export default auth;

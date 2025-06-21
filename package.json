@@ -1,0 +1,37 @@
+{
+  "name": "@apps/server",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "tsc",
+    "start": "NODE_ENV=production bun run dist/index.js",
+    "prod": "NODE_ENV=production bun run /app/dist/index.js",
+    "db": "bun prisma generate && bun prisma db push"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@hono/zod-validator": "^0.4.3",
+    "@prisma/client": "^6.2.1",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.48.1",
+    "@upstash/ratelimit": "^2.0.5",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "hono": "^4.7.2",
+    "http-status-codes": "^2.3.0",
+    "paymongo-node": "^10.17.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "redis": "^4.7.0",
+    "resend": "^4.3.0",
+    "undici": "^7.4.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.11.17",
+    "tsx": "^4.7.1",
+    "typescript": "^5.7.3"
+  }
+}

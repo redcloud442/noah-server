@@ -1,0 +1,10 @@
+import { Hono } from "hono";
+import { protectionMiddleware } from "../middleware/protection.middleware.js";
+import auth from "./auth/auth.route.js";
+import cart from "./cart/cart.route.js";
+const app = new Hono();
+app.route("/auth", auth);
+app.use("/cart/*", protectionMiddleware);
+app.route("/cart", cart);
+app.get("/", (c) => c.text("This is the api endpoint"));
+export default app;

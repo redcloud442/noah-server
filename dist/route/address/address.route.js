@@ -1,0 +1,10 @@
+import { Hono } from "hono";
+import { addressCreateController, addressDeleteController, addressGetController, addressSetDefaultController, addressUpdateController, } from "./address.controller.js";
+import { addressCreateMiddleware, addressDeleteMiddleware, addressGetMiddleware, addressPutDefaultMiddleware, } from "./address.middleware.js";
+const address = new Hono();
+address.get("/", addressGetMiddleware, addressGetController);
+address.post("/", addressCreateMiddleware, addressCreateController);
+address.put("/:id", addressCreateMiddleware, addressUpdateController);
+address.put("/:id/default", addressPutDefaultMiddleware, addressSetDefaultController);
+address.delete("/:id", addressDeleteMiddleware, addressDeleteController);
+export default address;
