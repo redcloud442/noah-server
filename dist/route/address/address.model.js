@@ -48,6 +48,7 @@ export const addressCreateModel = async (params) => {
             user_address_last_name: addressData.lastName,
             user_address_barangay: addressData.barangay,
             user_address_is_default: addressData.is_default,
+            user_address_delivery_option: addressData.shippingOption,
         },
     });
 };
@@ -69,6 +70,7 @@ export const addressUpdateModel = async (params) => {
                 user_address_last_name: addressData.lastName,
                 user_address_barangay: addressData.barangay,
                 user_address_is_default: addressData.is_default,
+                user_address_delivery_option: addressData.shippingOption,
             },
         });
     });

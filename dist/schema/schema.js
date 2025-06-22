@@ -116,7 +116,10 @@ export const userPostSchema = z.object({
 export const userPatchSchema = z.object({
     userId: z.string().uuid(),
     type: z.enum(["ban", "promote"]),
-    role: z.enum(["ADMIN", "MEMBER", "RESELLER"]).optional().nullable(),
+    role: z
+        .enum(["ADMIN", "MEMBER", "RESELLER", "CASHIER"])
+        .optional()
+        .nullable(),
 });
 export const userVerifyResellerCodeSchema = z.object({
     otp: z.string().min(6).max(6),
@@ -182,4 +185,17 @@ export const emailSchema = z.object({
     subject: z.string(),
     text: z.string(),
     html: z.string(),
+});
+export const getPosProductsSchema = z.object({
+    take: z.coerce.number().min(1).max(100),
+    skip: z.coerce.number().min(0),
+});
+export const addPosProductSchema = z.object({
+    total_amount: z.number(),
+    cartItems: z.array(z.object({
+        product_variant_id: z.string().uuid(),
+        product_quantity: z.number(),
+        product_variant_size: z.string(),
+        product_variant_product: z.string(),
+    })),
 });

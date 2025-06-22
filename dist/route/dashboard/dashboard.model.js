@@ -17,6 +17,9 @@ export const dashboardModel = async (params) => {
                     gte: startDate,
                     lte: endDate,
                 },
+                order_status: {
+                    in: ["PAID", "SHIPPED"],
+                },
             },
         }),
         prisma.order_table.aggregate({
@@ -26,10 +29,18 @@ export const dashboardModel = async (params) => {
                     gte: startOfMonth(now),
                     lte: endOfMonth(now),
                 },
+                order_status: {
+                    in: ["PAID", "SHIPPED"],
+                },
             },
         }),
         prisma.order_table.aggregate({
             _sum: { order_total: true },
+            where: {
+                order_status: {
+                    in: ["PAID", "SHIPPED"],
+                },
+            },
         }),
     ]);
     const totalBranches = await prisma.team_table.count();

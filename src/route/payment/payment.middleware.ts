@@ -52,6 +52,7 @@ export const paymentMiddleware = async (c: Context, next: Next) => {
     province,
     postalCode,
     productVariant,
+    shippingOption,
   } = await c.req.json();
 
   const validate = paymentSchema.safeParse({
@@ -68,9 +69,11 @@ export const paymentMiddleware = async (c: Context, next: Next) => {
     postalCode,
     productVariant,
     referralCode,
+    shippingOption,
   });
 
   if (!validate.success) {
+    console.log(validate.error);
     return c.json(
       { message: "Invalid request", errors: validate.error.errors },
       400

@@ -27,7 +27,6 @@ export const cartPostController = async (c) => {
         return c.json(cart, 200);
     }
     catch (error) {
-        console.log(error);
         return c.json({ message: "Error" }, 500);
     }
 };

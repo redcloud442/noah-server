@@ -49,6 +49,7 @@ model user_address_table {
   user_address_barangay String
   user_address_phone String
   user_address_postal_code String
+  user_address_delivery_option String?
   user_address_created_at DateTime @default(now()) @db.Timestamptz(3)
   user_address_updated_at DateTime? @updatedAt @db.Timestamptz(3)
   user_address_is_default Boolean @default(false)
@@ -151,6 +152,7 @@ model order_table {
   order_postal_code String
   order_phone      String
   order_status     OrderStatus
+  order_delivery_option String?
   order_total      Float?
   order_created_at DateTime  @default(now()) @db.Timestamptz(3)
   order_updated_at DateTime? @updatedAt @db.Timestamptz(3)

@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios";
 import prisma from "../../utils/prisma.js";
 export const createPaymentIntent = async (params, user) => {
-    const { amount, productVariant, order_number, email, firstName, lastName, phone, address, city, province, postalCode, barangay, referralCode, } = params;
+    const { amount, productVariant, order_number, email, firstName, lastName, phone, address, city, province, postalCode, shippingOption, barangay, referralCode, } = params;
     const productVariantIds = productVariant.map((item) => item.product_variant_id);
     const paymentIntent = await prisma.$transaction(async (tx) => {
         const placeholders = productVariantIds
@@ -98,6 +98,7 @@ export const createPaymentIntent = async (params, user) => {
                 order_city: city,
                 order_state: province,
                 order_postal_code: postalCode,
+                order_delivery_option: shippingOption,
                 order_barangay: barangay,
                 order_team_id: "16dcbf9a-1904-43f7-a98a-060f6903661d",
                 order_reseller_id: referral ? referral.reseller_id : null,

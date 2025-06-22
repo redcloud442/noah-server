@@ -22,6 +22,7 @@ export const createPaymentIntent = async (
     city,
     province,
     postalCode,
+    shippingOption,
     barangay,
     referralCode,
   } = params;
@@ -153,6 +154,7 @@ export const createPaymentIntent = async (
         order_city: city,
         order_state: province,
         order_postal_code: postalCode,
+        order_delivery_option: shippingOption,
         order_barangay: barangay,
         order_team_id: "16dcbf9a-1904-43f7-a98a-060f6903661d",
         order_reseller_id: referral ? referral.reseller_id : null,

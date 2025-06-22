@@ -24,7 +24,7 @@ export const paymentMiddleware = async (c, next) => {
     // ) {
     //   return c.json({ message: "Unauthorized" }, 401);
     // }
-    const { order_number, email, firstName, lastName, phone, amount, barangay, address, city, province, postalCode, productVariant, } = await c.req.json();
+    const { order_number, email, firstName, lastName, phone, amount, barangay, address, city, province, postalCode, productVariant, shippingOption, } = await c.req.json();
     const validate = paymentSchema.safeParse({
         order_number,
         email,
@@ -39,8 +39,10 @@ export const paymentMiddleware = async (c, next) => {
         postalCode,
         productVariant,
         referralCode,
+        shippingOption,
     });
     if (!validate.success) {
+        console.log(validate.error);
         return c.json({ message: "Invalid request", errors: validate.error.errors }, 400);
     }
     const isAllowed = await rateLimit(`rate-limit:${userData.id}:payment-create`, 50, "1m", c);

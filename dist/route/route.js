@@ -8,6 +8,7 @@ import email from "./email/email.route.js";
 import newsletter from "./newsletter/newsletter.route.js";
 import order from "./order/order.route.js";
 import payment from "./payment/payment.route.js";
+import pos from "./pos/pos.route.js";
 import product from "./product/product.route.js";
 import publicRoutes from "./public/public.routes.js";
 import reseller from "./reseller/reseller.route.js";
@@ -41,6 +42,9 @@ app.route("/withdraw", withdraw);
 // Dashboard
 app.use("/dashboard/*", protectionMiddleware);
 app.route("/dashboard", dashboard);
+// POS
+app.use("/pos/*", protectionMiddleware);
+app.route("/pos", pos);
 // Public
 app.route("/publicRoutes", publicRoutes);
 // Newsletter

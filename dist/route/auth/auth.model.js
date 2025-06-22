@@ -36,11 +36,15 @@ export const authLoginModel = async (params) => {
         throw new Error("User not found");
     }
     if (!userData.team_member_table[0].team_member_role.includes("ADMIN") &&
-        !userData.team_member_table[0].team_member_role.includes("MEMBER")) {
+        !userData.team_member_table[0].team_member_role.includes("MEMBER") &&
+        !userData.team_member_table[0].team_member_role.includes("CASHIER")) {
         throw new Error("User not found");
     }
     if (userData.team_member_table[0].team_member_role === "ADMIN") {
         redirectTo = `/${userData.team_member_table[0].team_member_team.team_name.toLowerCase()}/admin`;
+    }
+    else if (userData.team_member_table[0].team_member_role === "CASHIER") {
+        redirectTo = `/pos`;
     }
     else {
         redirectTo = "/account/orders";
@@ -110,7 +114,7 @@ export const authLoginResellerModel = async (params) => {
 };
 export const authCallbackModel = async (params) => {
     const { email, firstName, lastName, userId, cart } = params;
-    let redirectTo = "http://localhost:3001/account";
+    let redirectTo = "https://www.noir-clothing.com/account";
     const isUserExists = await prisma.user_table.findUnique({
         where: {
             user_id: userId,
@@ -190,14 +194,18 @@ export const authCallbackModel = async (params) => {
     }
     if (!userData.team_member_table[0].team_member_role.includes("ADMIN") &&
         !userData.team_member_table[0].team_member_role.includes("MEMBER") &&
-        !userData.team_member_table[0].team_member_role.includes("RESELLER")) {
+        !userData.team_member_table[0].team_member_role.includes("RESELLER") &&
+        !userData.team_member_table[0].team_member_role.includes("CASHIER")) {
         throw new Error("User not found");
     }
     if (userData.team_member_table[0].team_member_role === "ADMIN") {
-        redirectTo = `http://localhost:3001/${userData.team_member_table[0].team_member_team.team_name.toLowerCase()}/admin`;
+        redirectTo = `${process.env.NODE_ENV === "development" ? "http://localhost:3001" : "https://www.noir-clothing.com"}/${userData.team_member_table[0].team_member_team.team_name.toLowerCase()}/admin`;
+    }
+    if (userData.team_member_table[0].team_member_role === "CASHIER") {
+        redirectTo = `${process.env.NODE_ENV === "development" ? "http://localhost:3001" : "https://www.noir-clothing.com"}/pos`;
     }
     else {
-        redirectTo = `http://localhost:3001/account`;
+        redirectTo = `https://www.noir-clothing.com/account`;
     }
     if (!userData) {
         throw new Error("User not found");

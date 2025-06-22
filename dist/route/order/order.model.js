@@ -125,6 +125,9 @@ export const orderGetListModel = async (params) => {
                 },
             },
         },
+        orderBy: {
+            order_created_at: "desc",
+        },
         take,
         skip: offset,
     });
