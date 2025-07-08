@@ -69,7 +69,7 @@ app.route("/publicRoutes", publicRoutes);
 app.route("/newsletter", newsletter);
 
 // Webhook
-app.route("/webhook", webhook);
+app.route("/webhooks", webhook);
 
 // Email
 app.route("/email", email);
