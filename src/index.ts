@@ -14,7 +14,7 @@ app.use(
     origin: [
       process.env.NODE_ENV === "development"
         ? "http://localhost:3000"
-        : "https://primepinas.com",
+        : "https://noah-client-x2g2.vercel.app/",
     ],
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"],
