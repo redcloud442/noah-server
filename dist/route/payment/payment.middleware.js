@@ -42,7 +42,6 @@ export const paymentMiddleware = async (c, next) => {
         shippingOption,
     });
     if (!validate.success) {
-        console.log(validate.error);
         return c.json({ message: "Invalid request", errors: validate.error.errors }, 400);
     }
     const isAllowed = await rateLimit(`rate-limit:${userData.id}:payment-create`, 50, "1m", c);

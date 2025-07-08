@@ -210,7 +210,9 @@ export const getUserListModel = async (params) => {
                 },
             },
         },
-        orderBy: orderBy,
+        orderBy: {
+            user_created_at: "desc",
+        },
         take,
         skip: offset,
     });

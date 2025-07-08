@@ -160,6 +160,8 @@ model order_table {
   order_team_id   String    @db.Uuid
   order_reseller_id String? @db.Uuid
   order_reseller_is_processed Boolean @default(false)
+  order_is_notified Boolean @default(false)
+
 
   order_user       user_table? @relation(fields: [order_user_id], references: [user_id], onDelete: Cascade)
   order_team      team_table @relation(fields: [order_team_id], references: [team_id], onDelete: Cascade)

@@ -320,7 +320,6 @@ export const createPaymentMethod = async (
     };
   } catch (error) {
     if (error instanceof AxiosError) {
-      console.log(error.response?.data);
     }
     throw new Error("Payment process failed");
   }
@@ -358,6 +357,11 @@ export const getPayment = async ({
       succeeded: "PAID",
       failed: "CANCELED",
     } as const;
+
+    await prisma.order_table.update({
+      where: { order_number: orderNumber },
+      data: { order_is_notified: true },
+    });
 
     const orderStatus: "PAID" | "CANCELED" | "PENDING" | "UNPAID" =
       statusMap[paymentStatus as keyof typeof statusMap] ?? "UNPAID";
