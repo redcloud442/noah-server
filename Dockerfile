@@ -62,7 +62,7 @@ COPY --from=builder --chown=redcloud:nodejs /app/prisma ./prisma
 COPY scripts/entrypoint_overwrited.sh /app/entrypoint.sh
 RUN dos2unix /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
-# Ensure /app is owned by non-root user
+# Ensure /app is owned by non-root users
 RUN chown -R redcloud:nodejs /app
 
 # Use non-root user
