@@ -2,9 +2,9 @@ name: Docker Image CI/CD
 
 on:
   push:
-    branches: ["main"]
+    branches: ["test"]
   pull_request:
-    branches: ["main"]
+    branches: ["test"]
 
 permissions:
   contents: read
@@ -37,24 +37,24 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }}
+          tags: ghcr.io/redcloud442/noah-server:test-be-${{ env.SHORT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: "v1.25.4"
+      # - name: Set up kubectl
+      #   uses: azure/setup-kubectl@v3
+      #   with:
+      #     version: "v1.25.4"
 
-      - name: Create kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > $HOME/.kube/config
+      # - name: Create kubeconfig
+      #   run: |
+      #     mkdir -p $HOME/.kube
+      #     echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > $HOME/.kube/config
 
-      - name: Deploy to Kubernetes
-        run: |
-          echo "🚀 Updating image in deployment 'noir-be'... .."
-          kubectl set image deployment/noir-be noah-be=ghcr.io/redcloud442/noah-server:prod-be-${{ env.SHORT_SHA }} -n noir
+      # - name: Deploy to Kubernetes
+      #   run: |
+      #     echo "🚀 Updating image in deployment 'noir-be'... .."
+      #     kubectl set image deployment/noir-be-test noah-be-test=ghcr.io/redcloud442/noah-server:test-be-${{ env.SHORT_SHA }} -n noir
 
-          echo "⏳ Waiting for rollout to complete..."
-          kubectl rollout status deployment/noir-be -n noir
+      #     echo "⏳ Waiting for rollout to complete..."
+      #     kubectl rollout status deployment/noir-be-test -n noir
