@@ -16,6 +16,7 @@ import product from "./product/product.route.js";
 import publicRoutes from "./public/public.routes.js";
 import reseller from "./reseller/reseller.route.js";
 import user from "./user/user.route.js";
+import webhook from "./webhook/webhook.route.js";
 import withdraw from "./withdraw/withdraw.route.js";
 const app = new Hono();
 
@@ -66,6 +67,9 @@ app.route("/publicRoutes", publicRoutes);
 
 // Newsletter
 app.route("/newsletter", newsletter);
+
+// Webhook
+app.route("/webhook", webhook);
 
 // Email
 app.route("/email", email);
