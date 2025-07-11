@@ -122,6 +122,7 @@ export const paymentCreatePaymentMiddleware = async (
   });
 
   if (!validate.success) {
+    console.log(validate.error);
     return c.json(
       { message: "Invalid request", errors: validate.error.errors },
       400

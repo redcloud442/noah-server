@@ -36,7 +36,11 @@ export const paymentSchema = z
 
 export type CheckoutFormData = z.infer<typeof paymentSchema>;
 
-export const cardPaymentSchema = z.object({
+const cardTypeEnum = z.enum(["Visa", "Mastercard"]);
+const eWalletEnum = z.enum(["GCash", "GrabPay", "PayMaya"]);
+const bankingEnum = z.enum(["BPI", "UnionBank"]);
+
+const cardPaymentSchema = z.object({
   order_number: z.string().min(8).max(8),
   payment_method: z.literal("card"),
   payment_details: z.object({
@@ -46,17 +50,13 @@ export const cardPaymentSchema = z.object({
       card_cvv: z.string().min(3).max(3),
     }),
   }),
-  payment_type: z
-    .enum(["GCash", "GrabPay", "PayMaya", "BPI", "UnionBank"])
-    .optional(),
+  payment_type: cardTypeEnum,
 });
 
-export const nonCardPaymentSchema = z.object({
+const nonCardPaymentSchema = z.object({
   order_number: z.string().min(8).max(16),
   payment_method: z.enum(["e_wallet", "online_banking"]),
-  payment_type: z
-    .enum(["GCash", "GrabPay", "PayMaya", "BPI", "UnionBank"])
-    .optional(),
+  payment_type: z.union([eWalletEnum, bankingEnum]),
 });
 
 export const paymentCreatePaymentSchema = z.discriminatedUnion(
