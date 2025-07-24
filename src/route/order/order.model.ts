@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import prisma from "../../utils/prisma.js";
 
 export const orderGetModel = async (params: {
@@ -191,4 +191,23 @@ export const orderGetListModel = async (params: {
   }));
 
   return { orders: formattedOrders, count };
+};
+
+export const orderPutModel = async (params: {
+  orderId: string;
+  status: string;
+}) => {
+  const where: Prisma.order_tableWhereInput = {};
+  const { orderId, status } = params;
+
+  const order = await prisma.order_table.update({
+    where: {
+      order_id: orderId,
+    },
+    data: {
+      order_status: status as OrderStatus,
+    },
+  });
+
+  return order;
 };

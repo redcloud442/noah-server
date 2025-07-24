@@ -135,7 +135,20 @@ export const orderGetListSchema = z.object({
   userId: z.string().uuid().optional(),
 });
 
+export const orderPutSchema = z.object({
+  orderId: z.string().uuid(),
+  status: z.enum([
+    "PENDING",
+    "PROCESSING",
+    "SHIPPED",
+    "DELIVERED",
+    "CANCELLED",
+  ]),
+});
+
 export type typeOrderGetListSchema = z.infer<typeof orderGetListSchema>;
+
+export type typeOrderPutSchema = z.infer<typeof orderPutSchema>;
 
 export const userPostSchema = z.object({
   search: z.string().optional(),

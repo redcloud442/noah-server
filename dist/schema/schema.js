@@ -101,6 +101,16 @@ export const orderGetListSchema = z.object({
     teamId: z.string().uuid().optional(),
     userId: z.string().uuid().optional(),
 });
+export const orderPutSchema = z.object({
+    orderId: z.string().uuid(),
+    status: z.enum([
+        "PENDING",
+        "PROCESSING",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+    ]),
+});
 export const userPostSchema = z.object({
     search: z.string().optional(),
     dateFilter: z.object({

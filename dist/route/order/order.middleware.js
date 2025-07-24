@@ -1,4 +1,4 @@
-import { orderGetListSchema } from "../../schema/schema.js";
+import { orderGetListSchema, orderPutSchema } from "../../schema/schema.js";
 import { rateLimit } from "../../utils/redis.js";
 import { orderGetSchema } from "../../utils/schema.js";
 export const orderGetMiddleware = async (c, next) => {
@@ -49,6 +49,29 @@ export const orderGetListMiddleware = async (c, next) => {
     }
     const { params } = await c.req.json();
     const validated = orderGetListSchema.safeParse(params);
+    if (!validated.success) {
+        return c.json({ message: "Invalid request" }, 400);
+    }
+    c.set("params", validated.data);
+    c.set("user", user);
+    await next();
+};
+export const orderPutMiddleware = async (c, next) => {
+    const user = c.get("user");
+    if (!user) {
+        return c.json({ message: "Unauthorized" }, 401);
+    }
+    const isAllowed = await rateLimit(`rate-limit:${user.id}:order-get-list`, 50, "1m", c);
+    if (!isAllowed) {
+        return c.json({ message: "Too many requests" }, 429);
+    }
+    const params = c.req.param();
+    const { status } = await c.req.json();
+    const formattedData = {
+        orderId: params.id,
+        status,
+    };
+    const validated = orderPutSchema.safeParse(formattedData);
     if (!validated.success) {
         return c.json({ message: "Invalid request" }, 400);
     }

@@ -150,3 +150,16 @@ export const orderGetListModel = async (params) => {
     }));
     return { orders: formattedOrders, count };
 };
+export const orderPutModel = async (params) => {
+    const where = {};
+    const { orderId, status } = params;
+    const order = await prisma.order_table.update({
+        where: {
+            order_id: orderId,
+        },
+        data: {
+            order_status: status,
+        },
+    });
+    return order;
+};

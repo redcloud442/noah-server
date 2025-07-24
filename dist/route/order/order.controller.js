@@ -1,4 +1,4 @@
-import { orderGetItemsModel, orderGetListModel, orderGetModel, } from "./order.model.js";
+import { orderGetItemsModel, orderGetListModel, orderGetModel, orderPutModel, } from "./order.model.js";
 export const orderGetController = async (c) => {
     try {
         const user = c.get("user");
@@ -26,6 +26,16 @@ export const orderGetListController = async (c) => {
     try {
         const params = c.get("params");
         const orders = await orderGetListModel({ ...params });
+        return c.json(orders);
+    }
+    catch (error) {
+        return c.json({ message: "Internal server error" }, 500);
+    }
+};
+export const orderPutController = async (c) => {
+    try {
+        const params = c.get("params");
+        const orders = await orderPutModel({ ...params });
         return c.json(orders);
     }
     catch (error) {
