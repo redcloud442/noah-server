@@ -87,7 +87,7 @@ export const createPaymentIntent = async (
         );
       }
     }
-    const dataAmount = Math.round(20 * 100);
+    const dataAmount = Math.round(amount * 100);
 
     const response = await axios.post(
       "https://api.paymongo.com/v1/payment_intents",
