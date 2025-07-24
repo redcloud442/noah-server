@@ -10,8 +10,8 @@ export const checkoutSchema = z.object({
 export const paymentSchema = z
   .object({
     email: z.string().email("Invalid email address"),
-    firstName: z.string().min(4, "First name is required"),
-    lastName: z.string().min(4, "Last name is required"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
     address: z.string().min(4, "Address is required"),
     province: z.string().min(4, "Province is required"),
     city: z.string().min(4, "City is required"),
