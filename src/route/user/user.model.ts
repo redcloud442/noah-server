@@ -400,7 +400,17 @@ export const getUserListResellerModel = async (params: {
   }));
 
   const count = await prisma.user_table.count({
-    where: filter,
+    where: {
+      ...filter,
+      team_member_table: {
+        some: {
+          team_member_team_id: teamId,
+          team_member_role: {
+            equals: "RESELLER",
+          },
+        },
+      },
+    },
   });
 
   return {
