@@ -8,8 +8,8 @@ export const checkoutSchema = z.object({
 export const paymentSchema = z
     .object({
     email: z.string().email("Invalid email address"),
-    firstName: z.string().min(4, "First name is required"),
-    lastName: z.string().min(4, "Last name is required"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
     address: z.string().min(4, "Address is required"),
     province: z.string().min(4, "Province is required"),
     city: z.string().min(4, "City is required"),
@@ -29,7 +29,10 @@ export const paymentSchema = z
     })),
 })
     .strict();
-export const cardPaymentSchema = z.object({
+const cardTypeEnum = z.enum(["Visa", "Mastercard"]);
+const eWalletEnum = z.enum(["GCash", "GrabPay", "PayMaya"]);
+const bankingEnum = z.enum(["BPI", "UnionBank"]);
+const cardPaymentSchema = z.object({
     order_number: z.string().min(8).max(8),
     payment_method: z.literal("card"),
     payment_details: z.object({
@@ -39,16 +42,12 @@ export const cardPaymentSchema = z.object({
             card_cvv: z.string().min(3).max(3),
         }),
     }),
-    payment_type: z
-        .enum(["GCash", "GrabPay", "PayMaya", "BPI", "UnionBank"])
-        .optional(),
+    payment_type: cardTypeEnum,
 });
-export const nonCardPaymentSchema = z.object({
+const nonCardPaymentSchema = z.object({
     order_number: z.string().min(8).max(16),
     payment_method: z.enum(["e_wallet", "online_banking"]),
-    payment_type: z
-        .enum(["GCash", "GrabPay", "PayMaya", "BPI", "UnionBank"])
-        .optional(),
+    payment_type: z.union([eWalletEnum, bankingEnum]),
 });
 export const paymentCreatePaymentSchema = z.discriminatedUnion("payment_method", [cardPaymentSchema, nonCardPaymentSchema]);
 export const orderGetSchema = z.object({

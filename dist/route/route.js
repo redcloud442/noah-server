@@ -13,6 +13,7 @@ import product from "./product/product.route.js";
 import publicRoutes from "./public/public.routes.js";
 import reseller from "./reseller/reseller.route.js";
 import user from "./user/user.route.js";
+import webhook from "./webhook/webhook.route.js";
 import withdraw from "./withdraw/withdraw.route.js";
 const app = new Hono();
 app.route("/auth", auth);
@@ -49,6 +50,8 @@ app.route("/pos", pos);
 app.route("/publicRoutes", publicRoutes);
 // Newsletter
 app.route("/newsletter", newsletter);
+// Webhook
+app.route("/webhooks", webhook);
 // Email
 app.route("/email", email);
 app.get("/", (c) => c.text("This is the api endpoint"));
